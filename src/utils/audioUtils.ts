@@ -535,4 +535,30 @@ export const resumeAudioContext = async (): Promise<void> => {
       console.error('Failed to resume audio context:', error);
     }
   }
-}; 
+};
+
+// Add this function to handle audio context unlocking
+export const unlockAudioContext = async (): Promise<boolean> => {
+  try {
+    // Create a silent audio buffer
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Resume the audio context if it's suspended
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+    
+    // Create a short, silent sound
+    const buffer = audioContext.createBuffer(1, 1, 22050);
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start(0);
+    
+    console.log('Audio context unlocked successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to unlock audio context:', error);
+    return false;
+  }
+} 

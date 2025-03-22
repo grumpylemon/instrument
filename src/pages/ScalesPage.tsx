@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import '../App.css';
 import MusicalStaff from '../components/MusicalStaff';
 import { NoteData, TRUMPET_NOTES, TROMBONE_NOTES, RECORDER_NOTES, OCARINA_NOTES, Instrument, Clef, InstrumentPitch, getMidiNoteName } from '../types';
-import { initializeAudio, playNote, stopAllSounds, stopActiveNotes } from '../utils/audioUtils';
-import * as Tone from 'tone';
+import { initializeAudio, playNote, stopAllSounds, stopActiveNotes, unlockAudioContext } from '../utils/audioUtils';
 
 // Scale patterns in semitones
 const SCALE_PATTERNS = {
@@ -172,8 +171,8 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     setAudioStatus('Initializing audio...');
     try {
       await initializeAudio();
-      await Tone.context.resume();
-      console.log('Tone context state:', Tone.context.state);
+      await unlockAudioContext();
+      console.log('Audio context unlocked');
       setAudioInitialized(true);
       setAudioStatus('Audio ready');
     } catch (error) {
