@@ -145,27 +145,40 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
       
       console.log(`Instrument range: ${lowestNote} to ${highestNote}`);
       
-      // Find the lowest root note of the scale (key) that is still within the instrument's range
-      let currentRoot = rootMidiNote;
-      while (currentRoot - 12 >= lowestNote) {
-        currentRoot -= 12; // Go down an octave
+      // Generate a wide range of potential scale notes across many octaves
+      // First, find how many semitones we need to cover the full range
+      const totalRange = highestNote - lowestNote;
+      
+      // Find a root note that's below the instrument's lowest note
+      let lowestRoot = rootMidiNote;
+      while (lowestRoot > lowestNote) {
+        lowestRoot -= 12; // Go down an octave
       }
       
-      // Generate the scale notes across the full range
-      while (currentRoot <= highestNote) {
-        const octaveNotes = scalePattern.map(semitones => currentRoot + semitones);
-        
-        // Don't add notes beyond the instrument's range
-        const validNotes = octaveNotes.filter(midiNote => midiNote <= highestNote);
-        
-        // Don't duplicate the root note when connecting octaves
-        if (allScaleMidiNotes.length > 0 && validNotes.length > 0) {
-          validNotes.shift(); // Remove the first note (root) for subsequent octaves
-        }
-        
-        allScaleMidiNotes = [...allScaleMidiNotes, ...validNotes];
-        currentRoot += 12; // Go up an octave for the next iteration
+      // Generate notes from the scale pattern across many octaves
+      const patternLength = Math.max(...scalePattern); // Typically 12 for one octave
+      const possibleNotes: number[] = [];
+      
+      // Generate enough octaves to cover the entire range plus some extra
+      const octavesToGenerate = Math.ceil(totalRange / 12) + 2;
+      
+      for (let octave = 0; octave < octavesToGenerate; octave++) {
+        const octaveRoot = lowestRoot + (octave * 12);
+        scalePattern.forEach(semitones => {
+          const noteValue = octaveRoot + semitones;
+          // Don't add duplicates
+          if (!possibleNotes.includes(noteValue)) {
+            possibleNotes.push(noteValue);
+          }
+        });
       }
+      
+      // Filter to only include notes within the instrument's range
+      allScaleMidiNotes = possibleNotes
+        .filter(note => note >= lowestNote && note <= highestNote)
+        .sort((a, b) => a - b); // Sort in ascending order
+      
+      console.log(`Generated ${allScaleMidiNotes.length} candidate notes across the instrument range`);
     } else {
       // Standard behavior for single octave
       const octaveNotes = scalePattern.map(semitones => rootMidiNote + semitones);
