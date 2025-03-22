@@ -1,5 +1,4 @@
 import { InstrumentPitch } from '../types';
-import * as Tone from 'tone';
 
 // Global audio context
 let audioContext: AudioContext | null = null;
@@ -55,12 +54,11 @@ export const initializeAudio = (): Promise<boolean> => {
   return new Promise((resolve) => {
     try {
       if (!audioContext) {
-        // Use the AudioContext from Tone.js
-        // @ts-ignore
-        audioContext = Tone.context.rawContext || Tone.context; 
+        // Create a native AudioContext
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         console.log("Audio context created:", audioContext);
         
-        if (!gainNode) {
+        if (!gainNode && audioContext) {
           // Create a master gain node
           gainNode = audioContext.createGain();
           gainNode.gain.setValueAtTime(1, audioContext.currentTime);
@@ -104,24 +102,23 @@ const initializeSoundfont = async (): Promise<boolean> => {
     
     if (hasAudioWorklet) {
       // Modern browsers with AudioWorklet support
-      console.log("Using Tone.js Sampler for soundfont playback");
+      console.log("Using simplified synthesizer for sound playback");
       
-      // Create Tone.js based synthesizer using samples
+      // Create a simple synthesizer
       if (!soundfontSynth) {
-        // We'll set up basic instruments first and then load the soundfont if available
-        soundfontSynth = new Tone.Sampler({
-          urls: {
-            "C4": "piano-c4.mp3",
+        soundfontSynth = {
+          // Simple implementation that will be replaced with actual synthesizer code
+          volume: { value: 0 },
+          triggerAttackRelease: (note: string, duration: number) => {
+            console.log(`Playing note ${note} for ${duration} seconds`);
+            // We'll implement this using our oscillator-based synthesis
           },
-          baseUrl: "/soundfonts/",
-          onload: () => {
-            console.log("Basic sampler loaded");
+          releaseAll: () => {
+            // Implemented in stopActiveNotes
           }
-        }).toDestination();
+        };
         
         // Try to load the FluidR3_GM.sf2 soundfont
-        // This requires a Soundfont player library or conversion to individual samples
-        // We'll check if the soundfont file exists
         fetch('/soundfonts/FluidR3_GM.sf2')
           .then(response => {
             if (response.ok) {
@@ -155,8 +152,8 @@ export const unlockAudioContext = async (): Promise<boolean> => {
   try {
     if (audioContext && audioContext.state !== 'running') {
       console.log("Attempting to resume audio context. Current state:", audioContext.state);
-      await Tone.start();
-      console.log("Tone.start() called, new audio context state:", audioContext.state);
+      await audioContext.resume();
+      console.log("Audio context resumed, new state:", audioContext.state);
       return true;
     }
     return true;
@@ -194,11 +191,11 @@ export const playNote = (
     // Try to use the soundfont if loaded
     if (soundfontLoaded && soundfontSynth) {
       try {
-        // Convert MIDI number to note name for Tone.js
+        // Convert MIDI number to note name for playback
         const noteName = midiToNoteName(midiNumber);
         
         // Set volume
-        soundfontSynth.volume.value = Tone.gainToDb(volume);
+        soundfontSynth.volume.value = volume;
         
         // Get appropriate instrument based on selection
         let soundfontInstrument = 'acoustic_grand_piano';
@@ -675,10 +672,13 @@ export const stopAllSounds = (): void => {
   }
 };
 
-// Function to ensure audio is resumed on user interaction
+/**
+ * Function to ensure audio is resumed on user interaction
+ */
 export const resumeAudioContext = async (): Promise<void> => {
   if (!audioContext) {
-    return initializeAudio();
+    await initializeAudio();
+    return;
   }
   
   if (audioContext.state === 'suspended') {
@@ -689,30 +689,4 @@ export const resumeAudioContext = async (): Promise<void> => {
       console.error('Failed to resume audio context:', error);
     }
   }
-};
-
-// Add this function to handle audio context unlocking
-export const unlockAudioContext = async (): Promise<boolean> => {
-  try {
-    // Create a silent audio buffer
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    // Resume the audio context if it's suspended
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
-    
-    // Create a short, silent sound
-    const buffer = audioContext.createBuffer(1, 1, 22050);
-    const source = audioContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioContext.destination);
-    source.start(0);
-    
-    console.log('Audio context unlocked successfully');
-    return true;
-  } catch (error) {
-    console.error('Failed to unlock audio context:', error);
-    return false;
-  }
-} 
+}; 

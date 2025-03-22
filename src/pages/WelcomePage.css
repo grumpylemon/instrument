@@ -1,0 +1,86 @@
+/* Welcome Page Styles */
+.welcome-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  min-height: 80vh;
+}
+
+.welcome-content {
+  max-width: 800px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 15px;
+  padding: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.trumpet-cartoon {
+  margin: 2rem auto;
+  max-width: 100%;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.welcome-message {
+  margin: 2rem 0;
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+
+.welcome-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.welcome-button {
+  background-color: #0078d4;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-size: 1.1rem;
+  border-radius: 30px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.3s, transform 0.2s;
+  min-width: 200px;
+  display: inline-block;
+}
+
+.welcome-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode for welcome page */
+@media (prefers-color-scheme: dark) {
+  .welcome-content {
+    background-color: rgba(40, 40, 40, 0.9);
+    color: #f0f0f0;
+  }
+  
+  .welcome-button {
+    background-color: #0056b3;
+  }
+  
+  .welcome-button:hover {
+    background-color: #0078d4;
+  }
+} 

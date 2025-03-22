@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import '../App.css';
+import '../components/styles/keyboard.css';
 import MusicalStaff from '../components/MusicalStaff';
-import { NoteData, TRUMPET_NOTES, TROMBONE_NOTES, RECORDER_NOTES, OCARINA_NOTES, Instrument, Clef, InstrumentPitch, getMidiNoteName } from '../types';
-import { initializeAudio, playNote, stopAllSounds, stopActiveNotes, unlockAudioContext } from '../utils/audioUtils';
+import { NoteData, TRUMPET_NOTES, TROMBONE_NOTES, RECORDER_NOTES, OCARINA_NOTES, Instrument, Clef, InstrumentPitch, getMidiNoteName, Fingering } from '../types';
+import { initializeAudio, playNote, stopAllSounds, stopActiveNotes, unlockAudioContext, getAudioContext } from '../utils/audioUtils';
 import TimeStamp from '../components/TimeStamp';
+import '../components/styles/Boomwhacker.css';
 
 // Scale patterns in semitones
 const SCALE_PATTERNS = {
@@ -18,8 +20,12 @@ const SCALE_PATTERNS = {
   lydian: [0, 2, 4, 6, 7, 9, 11, 12]
 };
 
-// Keys for scale selection
-const KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+// Keys for scale selection - include all 15 major keys (both sharps and flats)
+const KEYS = [
+  'C',                // No sharps/flats
+  'G', 'D', 'A', 'E', 'B', 'F#', 'C#',  // Sharp keys
+  'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'  // Flat keys
+];
 
 // Scale names for display
 const SCALE_NAMES = {
@@ -52,17 +58,25 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
   const [soundType, setSoundType] = useState<string>('default');
   const [audioInitialized, setAudioInitialized] = useState<boolean>(false);
   const [audioStatus, setAudioStatus] = useState<string>('Click Initialize to enable sound');
+  const [colorByDegree, setColorByDegree] = useState<boolean>(false);
   
   // Note display states
   const [scaleNotes, setScaleNotes] = useState<NoteData[]>([]);
   const [currentNoteIndex, setCurrentNoteIndex] = useState<number>(-1);
   const [selectedNote, setSelectedNote] = useState<NoteData | null>(null);
+  const [selectedNoteIndex, setSelectedNoteIndex] = useState<number>(-1);
   
   // References for playback
   const playbackInterval = useRef<NodeJS.Timeout | null>(null);
   
   // Add new state for audio settings panel
   const [showAudioSettings, setShowAudioSettings] = useState<boolean>(false);
+  
+  // Add state to track direction
+  const [playDirection, setPlayDirection] = useState<'forward' | 'backward'>('forward');
+  
+  // Add new state for loading indicator
+  const [isAudioLoading, setIsAudioLoading] = useState<boolean>(false);
   
   // Get notes based on selected instrument
   const baseNotes = instrument === 'trumpet' 
@@ -71,6 +85,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
         ? TROMBONE_NOTES 
         : (instrument === 'recorder' ? RECORDER_NOTES : OCARINA_NOTES));
   
+  // Add new state for loading indicator
   // Initialize audio
   useEffect(() => {
     const initAudio = async () => {
@@ -130,10 +145,76 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     const keyIndex = KEYS.indexOf(key);
     if (keyIndex === -1) return;
     
-    // Use C3 (MIDI 48) for bass clef instruments in single octave mode
-    // Use C4 (MIDI 60) for treble clef instruments or extended range
-    const baseRootNote = clef === 'bass' ? 48 : 60; // C3 vs C4
-    const rootMidiNote = baseRootNote + keyIndex; // Base note + semitones for key
+    // Determine base root note based on clef, instrument and key
+    let baseRootNote;
+    if (instrument === 'trombone') {
+      // For trombone, use exact octaves based on the reference image
+      // Based on the trombone scales PDF, match each key signature's correct starting position
+      switch (key) {
+        case 'C': baseRootNote = 36; break;   // C2 - First line in bass clef
+        case 'F': baseRootNote = 41; break;   // F2 - First space in bass clef
+        case 'Bb': baseRootNote = 34; break;  // Bb1 - Below bass clef staff
+        case 'Eb': baseRootNote = 39; break;  // Eb2 - Top of bass clef staff 
+        case 'Ab': baseRootNote = 32; break;  // Ab1 - Below bass clef staff
+        case 'Db': baseRootNote = 37; break;  // Db2 - Bottom of bass clef staff
+        case 'Gb': baseRootNote = 30; break;  // Gb1 - Below bass clef staff
+        case 'B': baseRootNote = 35; break;   // B1 - Below bass clef staff
+        case 'E': baseRootNote = 40; break;   // E2 - Bottom of bass clef staff
+        case 'A': baseRootNote = 33; break;   // A1 - Below bass clef staff
+        case 'D': baseRootNote = 38; break;   // D2 - Bottom of bass clef staff
+        case 'G': baseRootNote = 31; break;   // G1 - Below bass clef staff
+        default: baseRootNote = 36; break;    // Default to C2
+      }
+    } else if (instrument === 'trumpet') {
+      // For trumpet, carefully place the root note for each key to keep most notes within the staff
+      // For C trumpet (concert Bb for a Bb trumpet)
+      switch (key) {
+        case 'C': baseRootNote = 60; break;   // Middle C (C4)
+        case 'G': baseRootNote = 55; break;   // G3
+        case 'D': baseRootNote = 50; break;   // D3
+        case 'A': baseRootNote = 57; break;   // A3
+        case 'E': baseRootNote = 52; break;   // E3
+        case 'B': baseRootNote = 59; break;   // B3
+        case 'F#': baseRootNote = 54; break;  // F#3
+        case 'C#': baseRootNote = 61; break;  // C#4
+        case 'F': baseRootNote = 53; break;   // F3
+        case 'Bb': baseRootNote = 58; break;  // Bb3
+        case 'Eb': baseRootNote = 63; break;  // Eb4
+        case 'Ab': baseRootNote = 56; break;  // Ab3
+        case 'Db': baseRootNote = 61; break;  // Db4
+        case 'Gb': baseRootNote = 54; break;  // Gb3
+        case 'Cb': baseRootNote = 59; break;  // Cb4
+        default: baseRootNote = 60; break;    // Default to C4
+      }
+    } else {
+      // For other instruments, ensure the notes stay centered in the staff
+      // Use a base note that is appropriate for the clef
+      if (clef === 'bass') {
+        // For bass clef instruments, use F3 as a comfortable center point
+        baseRootNote = 53; // F3
+      } else {
+        // For treble clef instruments, use G4 as a comfortable center point
+        baseRootNote = 67; // G4
+      }
+      
+      // Adjust the base root note to match the selected key
+      // Find the pitch class of our base center note
+      const basePitchClass = baseRootNote % 12;
+      // Find the pitch class of the target key
+      const keyPitchClass = keyToPitchClass(key);
+      // Calculate the semitones to adjust
+      const adjustment = (keyPitchClass - basePitchClass + 12) % 12;
+      // If the adjustment would push the root too high, drop it an octave
+      if (adjustment > 7) {
+        baseRootNote = baseRootNote - (12 - adjustment);
+      } else {
+        baseRootNote = baseRootNote + adjustment;
+      }
+    }
+    
+    // For extended range, we'll use the calculated root note
+    // For single octave, we want to ensure the scale is centered on the staff
+    const rootMidiNote = baseRootNote;
     
     const scalePattern = SCALE_PATTERNS[scaleType];
     
@@ -248,69 +329,118 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     setSelectedNote(null);
   };
   
+  // Helper function to convert key name to pitch class (0-11)
+  const keyToPitchClass = (keyName: string): number => {
+    const pitchClasses: {[key: string]: number} = {
+      'C': 0, 'C#': 1, 'Db': 1,
+      'D': 2, 'D#': 3, 'Eb': 3,
+      'E': 4, 'F': 5, 'F#': 6,
+      'Gb': 6, 'G': 7, 'G#': 8,
+      'Ab': 8, 'A': 9, 'A#': 10,
+      'Bb': 10, 'B': 11, 'Cb': 11
+    };
+    
+    return pitchClasses[keyName] || 0;
+  };
+  
   // Function to explicitly initialize audio
-  const handleInitAudio = async () => {
-    setAudioStatus('Initializing audio...');
+  const handleInitializeAudio = async () => {
+    setIsAudioLoading(true);
     try {
-      await initializeAudio();
       await unlockAudioContext();
-      console.log('Audio context unlocked');
+      await initializeAudio();
       setAudioInitialized(true);
-      setAudioStatus('Audio ready');
+      setShowAudioSettings(false);
     } catch (error) {
       console.error('Failed to initialize audio:', error);
-      setAudioStatus('Audio initialization failed');
+    } finally {
+      setIsAudioLoading(false);
     }
   };
   
-  // Start playing the scale
-  const playScale = () => {
+  // Modified playScale function to handle both forward and backward playback
+  const playScale = async () => {
     if (!audioInitialized || scaleNotes.length === 0) {
       setAudioStatus('Please initialize audio first');
       return;
     }
     
-    // Stop any currently playing notes
-    stopActiveNotes();
-    
-    // Stop existing playback
-    if (playbackInterval.current) {
-      clearInterval(playbackInterval.current);
-    }
-    
-    setIsPlaying(true);
-    setCurrentNoteIndex(0);
-    
-    // Calculate note duration based on BPM
-    const noteDuration = 60000 / bpm; // in milliseconds
-    
-    // Play the first note immediately
-    const firstNote = scaleNotes[0];
-    setSelectedNote(firstNote);
-    playNote(instrument, firstNote.note.midiNote, pitch, 0.9, volume, soundType);
-    
-    // Setup interval for remaining notes
-    let noteIndex = 1;
-    
-    playbackInterval.current = setInterval(() => {
-      // Stop the previous note
-      stopActiveNotes();
-      
-      if (noteIndex >= scaleNotes.length) {
-        // End of scale
-        stopScale();
-        return;
+    try {
+      // Explicitly unlock audio context before playing
+      const audioContext = getAudioContext();
+      if (audioContext && audioContext.state !== 'running') {
+        await audioContext.resume();
+        console.log('Audio context resumed before playback');
       }
       
-      // Play the current note
-      const currentNote = scaleNotes[noteIndex];
-      setSelectedNote(currentNote);
-      setCurrentNoteIndex(noteIndex);
-      playNote(instrument, currentNote.note.midiNote, pitch, 0.9, volume, soundType);
+      // Make sure to unlock with multiple approaches
+      await unlockAudioContext();
       
-      // Move to next note
-      noteIndex++;
-    }, noteDuration);
+      // Stop any currently playing notes
+      stopActiveNotes();
+      
+      // Stop existing playback
+      if (playbackInterval.current) {
+        clearInterval(playbackInterval.current);
+      }
+      
+      setIsPlaying(true);
+      
+      // Set initial note index based on direction
+      let noteIndex = playDirection === 'forward' ? 0 : scaleNotes.length - 1;
+      setCurrentNoteIndex(noteIndex);
+      
+      // Calculate note duration based on BPM
+      const noteDuration = 60000 / bpm; // in milliseconds
+      
+      // Play the first note immediately
+      const firstNote = scaleNotes[noteIndex];
+      setSelectedNote(firstNote);
+      playNote(instrument, firstNote.note.midiNote, pitch, 0.9, volume, soundType);
+      
+      // Update index for next note based on direction
+      noteIndex = playDirection === 'forward' ? 1 : scaleNotes.length - 2;
+      
+      playbackInterval.current = setInterval(() => {
+        // Stop the previous note
+        stopActiveNotes();
+        
+        // Check if we've reached the end based on direction
+        if ((playDirection === 'forward' && noteIndex >= scaleNotes.length) || 
+            (playDirection === 'backward' && noteIndex < 0)) {
+          // End of scale
+          stopScale();
+          return;
+        }
+        
+        // Play the current note
+        const currentNote = scaleNotes[noteIndex];
+        setSelectedNote(currentNote);
+        setCurrentNoteIndex(noteIndex);
+        playNote(instrument, currentNote.note.midiNote, pitch, 0.9, volume, soundType);
+        
+        // Move to next note based on direction
+        noteIndex = playDirection === 'forward' ? noteIndex + 1 : noteIndex - 1;
+      }, noteDuration);
+    } catch (error) {
+      console.error('Error starting playback:', error);
+      setAudioStatus('Error playing scale. Try initializing audio again.');
+    }
+  };
+  
+  // Play scale in specific direction
+  const playScaleInDirection = (direction: 'forward' | 'backward') => {
+    setPlayDirection(direction);
+    
+    // If already playing, stop current playback
+    if (isPlaying) {
+      stopScale();
+    }
+    
+    // Small timeout to ensure any cleanup is complete
+    setTimeout(() => {
+      playScale();
+    }, 50);
   };
   
   // Stop playing the scale
@@ -369,7 +499,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
   };
   
   // Handle note selection (when user clicks on a note in the staff)
-  const handleNoteSelect = (note: NoteData) => {
+  const handleNoteSelect = async (note: NoteData) => {
     // Stop any playing scale
     stopScale();
     
@@ -377,8 +507,25 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     
     // Play the selected note
     if (audioInitialized) {
-      stopActiveNotes();
-      playNote(instrument, note.note.midiNote, pitch, 1, volume, soundType);
+      try {
+        // Explicitly unlock audio context before playing
+        const audioContext = getAudioContext();
+        if (audioContext && audioContext.state !== 'running') {
+          await audioContext.resume();
+          console.log('Audio context resumed for note selection');
+        }
+        
+        // Make sure to unlock with multiple approaches
+        await unlockAudioContext();
+        
+        stopActiveNotes();
+        playNote(instrument, note.note.midiNote, pitch, 1, volume, soundType);
+      } catch (error) {
+        console.error('Error playing note:', error);
+        setAudioStatus('Error playing note. Try initializing audio again.');
+      }
+    } else {
+      setAudioStatus('Please initialize audio first');
     }
   };
   
@@ -563,61 +710,256 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     setShowAudioSettings(!showAudioSettings);
   };
   
+  // Add toggle handler for Boomwhacker Colors
+  const toggleColorByDegree = () => {
+    setColorByDegree(!colorByDegree);
+  };
+
+  // Initial setup of selected note when scale changes
+  useEffect(() => {
+    if (scaleNotes.length > 0 && selectedNoteIndex === -1) {
+      setSelectedNoteIndex(0);
+    } else if (scaleNotes.length === 0) {
+      setSelectedNoteIndex(-1);
+    } else if (selectedNoteIndex >= scaleNotes.length) {
+      setSelectedNoteIndex(scaleNotes.length - 1);
+    }
+  }, [scaleNotes, selectedNoteIndex]);
+
+  const handleNoteClick = (index: number, noteObj: NoteData) => {
+    setSelectedNoteIndex(index);
+    setSelectedNote(noteObj);
+  };
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (scaleNotes.length === 0) return;
+      
+      switch (e.key) {
+        case 'ArrowRight':
+        case 'ArrowUp':
+          e.preventDefault();
+          if (selectedNoteIndex < scaleNotes.length - 1) {
+            const newIndex = selectedNoteIndex + 1;
+            setSelectedNoteIndex(newIndex);
+            setSelectedNote(scaleNotes[newIndex]);
+          }
+          break;
+        case 'ArrowLeft':
+        case 'ArrowDown':
+          e.preventDefault();
+          if (selectedNoteIndex > 0) {
+            const newIndex = selectedNoteIndex - 1;
+            setSelectedNoteIndex(newIndex);
+            setSelectedNote(scaleNotes[newIndex]);
+          }
+          break;
+        case 'Home':
+          e.preventDefault();
+          setSelectedNoteIndex(0);
+          setSelectedNote(scaleNotes[0]);
+          break;
+        case 'End':
+          e.preventDefault();
+          const lastIndex = scaleNotes.length - 1;
+          setSelectedNoteIndex(lastIndex);
+          setSelectedNote(scaleNotes[lastIndex]);
+          break;
+        case ' ':
+          e.preventDefault();
+          if (audioInitialized && scaleNotes.length > 0) {
+            if (isPlaying) {
+              stopScale();
+            } else {
+              playScaleInDirection('forward');
+            }
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [scaleNotes, selectedNoteIndex, isPlaying, audioInitialized]);
+
+  // Modify the ScaleNoteDisplay component to highlight the selected note
+  const ScaleNoteDisplay = ({ note, index }: { note: NoteData; index: number }) => {
+    const isSelected = index === selectedNoteIndex;
+    
+    // Helper function to format fingering display based on instrument type
+    const formatFingering = (fingering: Fingering): string => {
+      if (fingering.valves) {
+        return fingering.valves.length ? fingering.valves.join(', ') : 'Open';
+      } else if (fingering.position !== undefined) {
+        return `Position ${fingering.position}`;
+      } else if (fingering.holes) {
+        return `Holes ${fingering.holes.join(', ')}`;
+      } else if (fingering.ocarinaHoles) {
+        return `Holes ${fingering.ocarinaHoles.join(', ')}`;
+      }
+      return '';
+    };
+    
+    return (
+      <div 
+        className={`scale-note ${isSelected ? 'selected-note' : ''}`}
+        style={{ 
+          cursor: 'pointer',
+          margin: '0 5px',
+          padding: '8px',
+          borderRadius: '4px',
+          border: isSelected ? '2px solid #3a86ff' : '1px solid #ddd',
+          backgroundColor: isSelected ? '#e6f0ff' : 'white',
+          boxShadow: isSelected ? '0 0 5px rgba(58, 134, 255, 0.5)' : 'none',
+          transition: 'all 0.2s ease'
+        }}
+        onClick={() => handleNoteClick(index, note)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleNoteClick(index, note);
+          }
+        }}
+        tabIndex={0}
+        title={`${note.note.name} - ${formatFingering(note.fingering)}`}
+        role="button"
+        aria-pressed={isSelected}
+      >
+        <div style={{ fontWeight: 'bold' }}>{note.note.name}</div>
+        <div style={{ fontSize: '0.8rem', color: '#666' }}>
+          Fingering: {formatFingering(note.fingering)}
+        </div>
+      </div>
+    );
+  };
+
+  // Audio settings panel
+  const renderAudioSettings = () => {
+    return (
+      <div className="audio-settings-panel" style={{ 
+        backgroundColor: '#f5f5f5', 
+        padding: '15px', 
+        borderRadius: '8px',
+        margin: '15px 0',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+        <h3 style={{ marginTop: 0 }}>Audio Settings</h3>
+        <p>Click the button below to initialize audio. This is required for playing sounds on this page.</p>
+        
+        <button 
+          onClick={handleInitializeAudio} 
+          disabled={isAudioLoading}
+          style={{
+            backgroundColor: '#444',
+            color: 'white',
+            padding: '10px 15px',
+            borderRadius: '4px',
+            border: 'none',
+            cursor: isAudioLoading ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px'
+          }}
+        >
+          {isAudioLoading ? (
+            <>
+              <span className="loading-spinner" style={{
+                display: 'inline-block',
+                width: '16px',
+                height: '16px',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderRadius: '50%',
+                borderTopColor: 'white',
+                animation: 'spin 1s linear infinite'
+              }}></span>
+              Initializing...
+            </>
+          ) : (
+            'Initialize Audio'
+          )}
+        </button>
+        
+        <style>
+          {`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}
+        </style>
+      </div>
+    );
+  };
+
+  // Add visual feedback when a note is playing
+  useEffect(() => {
+    if (isPlaying && currentNoteIndex >= 0 && currentNoteIndex < scaleNotes.length) {
+      setSelectedNoteIndex(currentNoteIndex);
+      setSelectedNote(scaleNotes[currentNoteIndex]);
+    }
+  }, [currentNoteIndex, isPlaying, scaleNotes]);
+
   return (
     <div className="page-content">
       <h2 className="page-title">Musical Scales Practice</h2>
+      
+      {/* Add a prominent audio initialization notice if audio isn't initialized */}
+      {!audioInitialized && (
+        <div className="audio-init-notice" style={{
+          backgroundColor: '#f8d7da',
+          color: '#721c24',
+          padding: '15px',
+          borderRadius: '5px',
+          margin: '15px 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+        }}>
+          <div>
+            <strong>Audio Not Activated</strong> - 
+            Browser security requires user interaction before playing audio
+          </div>
+          <button
+            onClick={handleInitializeAudio}
+            style={{
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              padding: '10px 15px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              marginLeft: '15px',
+              fontWeight: 'bold'
+            }}
+          >
+            🔊 Click to Activate Audio
+          </button>
+        </div>
+      )}
       
       {/* Audio Settings Panel - Collapsible */}
       <div className="audio-settings-container">
         <button 
           className={`audio-settings-toggle ${showAudioSettings ? 'active' : ''}`}
           onClick={toggleAudioSettings}
+          style={{
+            backgroundColor: '#444444',
+            color: 'white',
+            border: 'none',
+            padding: '8px 15px',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
         >
           🔊 Audio Settings {showAudioSettings ? '▲' : '▼'}
         </button>
         
-        {showAudioSettings && (
-          <div className="audio-settings-panel" style={{ 
-            position: 'relative', 
-            right: 'auto', 
-            top: 'auto',
-            height: 'auto',
-            width: '100%',
-            backgroundColor: '#f9f9f9',
-            borderRadius: '8px',
-            padding: '15px',
-            boxShadow: '0 2px 5px rgba(0, 0, 0, 0.1)',
-            zIndex: 1,
-            boxSizing: 'border-box',
-            marginTop: '10px'
-          }}>
-            <div className="control-group">
-              <label htmlFor="sound-type">Sound Style</label>
-              <select
-                id="sound-type"
-                className="control-select"
-                value={soundType}
-                onChange={handleSoundTypeChange}
-              >
-                <option value="default">Default</option>
-                <option value="bright">Bright</option>
-                <option value="mellow">Mellow</option>
-                <option value="brilliant">Brilliant</option>
-                <option value="warm">Warm</option>
-                <option value="piano">Piano</option>
-                <option value="synth">Synth</option>
-              </select>
-            </div>
-            
-            <button 
-              className="init-audio-button"
-              onClick={handleInitAudio}
-              disabled={audioInitialized}
-            >
-              {audioInitialized ? '✓ Audio Ready' : '🔊 Initialize Audio'}
-            </button>
-          </div>
-        )}
+        {showAudioSettings && renderAudioSettings()}
       </div>
       
       {/* Main Controls - Keep at top */}
@@ -706,6 +1048,16 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
               {expandedRange ? 'Single Octave' : 'Full Instrument Range'}
             </button>
           </div>
+          
+          <div className="control-group">
+            <button
+              className={`boomwhacker-button ${colorByDegree ? 'active' : ''}`}
+              onClick={toggleColorByDegree}
+              title="Color notes by scale degree using the Boomwhacker color system"
+            >
+              {colorByDegree ? 'Disable Color Coding' : 'Enable Boomwhacker Colors'}
+            </button>
+          </div>
         </div>
       </div>
       
@@ -753,25 +1105,142 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
           notes={scaleNotes}
           onNoteSelect={handleNoteSelect}
           selectedNote={selectedNote}
+          rootNote={scaleNotes[0].note.midiNote}
+          colorByDegree={colorByDegree}
+          keyName={key}
         />
       )}
       
-      {/* Play button - Moved directly below the musical staff */}
-      <div className="play-button-container">
+      {/* Scale notes display */}
+      <div className="scale-notes-container" style={{ 
+        display: 'flex', 
+        flexWrap: 'wrap', 
+        justifyContent: 'center',
+        gap: '10px',
+        marginTop: '20px'
+      }}>
+        {scaleNotes.map((note, index) => (
+          <ScaleNoteDisplay key={index} note={note} index={index} />
+        ))}
+      </div>
+      
+      {/* Boomwhacker color legend */}
+      {colorByDegree && (
+        <div className="boomwhacker-legend">
+          <div className="color-item">
+            <div className="color-sample color-0"></div>
+            <div className="color-label">C (I)</div>
+          </div>
+          <div className="color-item">
+            <div className="color-sample color-2"></div>
+            <div className="color-label">D (II)</div>
+          </div>
+          <div className="color-item">
+            <div className="color-sample color-4"></div>
+            <div className="color-label">E (III)</div>
+          </div>
+          <div className="color-item">
+            <div className="color-sample color-5"></div>
+            <div className="color-label">F (IV)</div>
+          </div>
+          <div className="color-item">
+            <div className="color-sample color-7"></div>
+            <div className="color-label">G (V)</div>
+          </div>
+          <div className="color-item">
+            <div className="color-sample color-9"></div>
+            <div className="color-label">A (VI)</div>
+          </div>
+          <div className="color-item">
+            <div className="color-sample color-11"></div>
+            <div className="color-label">B (VII)</div>
+          </div>
+        </div>
+      )}
+      
+      {/* Play buttons - Forward and Backward */}
+      <div className="play-button-container" style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '15px' }}>
         <button
-          className={`play-button ${isPlaying ? 'playing' : ''}`}
-          onClick={isPlaying ? stopScale : playScale}
+          className={`play-button ${isPlaying && playDirection === 'backward' ? 'playing' : ''}`}
+          onClick={() => isPlaying ? stopScale() : playScaleInDirection('backward')}
           disabled={!audioInitialized || scaleNotes.length === 0}
+          title="Play scale from high to low notes"
+          style={{
+            backgroundColor: isPlaying && playDirection === 'backward' ? '#e53935' : '#555',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            padding: '10px 15px',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px'
+          }}
         >
-          {isPlaying ? '⏹ Stop' : '▶ Play Scale'}
+          {isPlaying && playDirection === 'backward' ? '⏹ Stop' : '◀ Play Descending'}
+        </button>
+        
+        <button
+          className={`play-button ${isPlaying && playDirection === 'forward' ? 'playing' : ''}`}
+          onClick={() => isPlaying ? stopScale() : playScaleInDirection('forward')}
+          disabled={!audioInitialized || scaleNotes.length === 0}
+          title="Play scale from low to high notes"
+          style={{
+            backgroundColor: isPlaying && playDirection === 'forward' ? '#e53935' : '#3a86ff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            padding: '10px 15px',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px'
+          }}
+        >
+          {isPlaying && playDirection === 'forward' ? '⏹ Stop' : '▶ Play Ascending'}
         </button>
       </div>
       
       <div className="scale-instructions">
         <p>
-          Click on any note to see its fingering. Use the Play button to hear the scale with correct fingerings.
+          Click on any note to see its fingering. Use the Play buttons to hear the scale with correct fingerings.
+          You can also navigate through the scale using the <kbd>←</kbd> and <kbd>→</kbd> arrow keys.
+        </p>
+        <p style={{ fontSize: '0.85rem', color: '#555' }}>
+          <strong>Keyboard shortcuts:</strong> Arrow keys to navigate notes, <kbd>Home</kbd>/<kbd>End</kbd> for first/last note, <kbd>Space</kbd> to play/stop.
         </p>
       </div>
+      
+      {/* Show current note and playback progress */}
+      {isPlaying && (
+        <div className="playback-info" style={{
+          backgroundColor: '#f0f8ff',
+          padding: '10px',
+          borderRadius: '4px',
+          marginTop: '10px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          <div>
+            <span style={{ fontWeight: 'bold' }}>Playing: </span>
+            {playDirection === 'forward' ? 'Ascending' : 'Descending'}
+          </div>
+          <div>
+            <span style={{ fontWeight: 'bold' }}>Current Note: </span>
+            {currentNoteIndex >= 0 && currentNoteIndex < scaleNotes.length 
+              ? scaleNotes[currentNoteIndex].note.name 
+              : '-'}
+          </div>
+          <div>
+            <span style={{ fontWeight: 'bold' }}>Note: </span>
+            {currentNoteIndex + 1} of {scaleNotes.length}
+          </div>
+        </div>
+      )}
       
       <TimeStamp />
     </div>

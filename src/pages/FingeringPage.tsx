@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import '../App.css';
 import MusicalStaff from '../components/MusicalStaff';
 import { NoteData, TRUMPET_NOTES, TROMBONE_NOTES, RECORDER_NOTES, OCARINA_NOTES, Instrument, Clef, InstrumentPitch, getMidiNoteName } from '../types';
-import { initializeAudio, playNote, stopAllSounds, stopActiveNotes, unlockAudioContext } from '../utils/audioUtils';
+import { initializeAudio, playNote, stopAllSounds, stopActiveNotes, unlockAudioContext, getAudioContext } from '../utils/audioUtils';
 import TimeStamp from '../components/TimeStamp';
 
 interface FingeringPageProps {}
@@ -195,14 +195,68 @@ const FingeringPage: React.FC<FingeringPageProps> = () => {
 
   // Explicitly initialize audio
   const handleInitAudio = async () => {
+    setAudioStatus('Initializing audio...');
     try {
-      setAudioStatus('Initializing audio...');
+      // Create a silent buffer and play it to unlock audio context
+      const silentBuffer = await createSilentAudioBuffer();
+      
+      // Initialize audio systems
       await initializeAudio();
+      
+      // Try multiple approaches to unlock audio context
+      await unlockAudioContext();
+      await playUnlockSound(silentBuffer);
+      
+      console.log('Audio context unlocked');
       setAudioInitialized(true);
-      setAudioStatus('Audio ready');
+      setAudioStatus('Audio ready - You can now play sounds');
     } catch (error) {
       console.error('Failed to initialize audio:', error);
-      setAudioStatus('Audio initialization failed');
+      setAudioStatus('Audio initialization failed. Please try again.');
+    }
+  };
+
+  // Helper function to create a silent audio buffer
+  const createSilentAudioBuffer = async (): Promise<AudioBuffer | null> => {
+    const audioContext = getAudioContext();
+    if (!audioContext) {
+      return null;
+    }
+    
+    // Create a 0.1 second silent audio buffer
+    const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.1, audioContext.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let i = 0; i < channel.length; i++) {
+      channel[i] = 0; // Silence
+    }
+    
+    return buffer;
+  };
+
+  // Helper function to play a silent sound to unlock the audio context
+  const playUnlockSound = async (buffer: AudioBuffer | null): Promise<void> => {
+    const audioContext = getAudioContext();
+    if (!audioContext || !buffer) {
+      return;
+    }
+    
+    try {
+      // Create a buffer source node
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      
+      // Connect to destination
+      source.connect(audioContext.destination);
+      
+      // Play immediately
+      source.start(0);
+      
+      // Resume the audio context
+      if (audioContext.state !== 'running') {
+        await audioContext.resume();
+      }
+    } catch (error) {
+      console.error('Error playing unlock sound:', error);
     }
   };
   
@@ -720,13 +774,43 @@ const FingeringPage: React.FC<FingeringPageProps> = () => {
                   onClick={handleInitAudio} 
                   disabled={audioInitialized}
                   className="audio-button"
+                  style={{
+                    backgroundColor: audioInitialized ? '#4caf50' : '#2196f3',
+                    color: 'white',
+                    padding: '10px 15px',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: 'bold',
+                    width: '100%',
+                    marginBottom: '10px'
+                  }}
                 >
-                  Initialize Audio
+                  {audioInitialized ? '✓ Audio Ready' : '🔊 Click Here to Enable Audio'}
                 </button>
+                <p style={{ 
+                  fontSize: '0.8rem', 
+                  marginTop: '0', 
+                  marginBottom: '10px', 
+                  color: '#666',
+                  textAlign: 'center' 
+                }}>
+                  {!audioInitialized && 'Browsers require user interaction before allowing audio playback.'}
+                </p>
                 <button 
                   onClick={handleTestAudio} 
                   disabled={!audioInitialized}
                   className="audio-button"
+                  style={{
+                    backgroundColor: !audioInitialized ? '#cccccc' : '#4caf50',
+                    color: 'white',
+                    padding: '10px 15px',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: !audioInitialized ? 'not-allowed' : 'pointer',
+                    fontSize: '1rem'
+                  }}
                 >
                   Test Sound
                 </button>

@@ -1,8 +1,9 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import './App.css';
 import FingeringPage from './pages/FingeringPage';
 import ScalesPage from './pages/ScalesPage';
+import WelcomePage from './pages/WelcomePage';
 
 function App() {
   return (
@@ -15,6 +16,12 @@ function App() {
               to="/" 
               className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
               end
+            >
+              Home
+            </NavLink>
+            <NavLink 
+              to="/fingering" 
+              className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
             >
               Fingering Chart
             </NavLink>
@@ -29,7 +36,8 @@ function App() {
         
         <main className="app-content">
           <Routes>
-            <Route path="/" element={<FingeringPage />} />
+            <Route path="/" element={<WelcomePage />} />
+            <Route path="/fingering" element={<FingeringPage />} />
             <Route path="/scales" element={<ScalesPage />} />
           </Routes>
         </main>

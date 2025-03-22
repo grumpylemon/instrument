@@ -1,0 +1,88 @@
+/* Boomwhacker button styling */
+.boomwhacker-button {
+  padding: 8px 12px;
+  border: 2px solid #4285f4;
+  border-radius: 4px;
+  background-color: #4285f4;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  min-width: 180px;
+}
+
+.boomwhacker-button:hover {
+  background-color: #3367d6;
+  border-color: #3367d6;
+}
+
+.boomwhacker-button.active {
+  background-color: #3367d6;
+  border-color: #2e59c7;
+  color: white;
+}
+
+/* Color legend for Boomwhacker colors */
+.boomwhacker-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: #f5f5f5;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.color-item {
+  display: flex;
+  align-items: center;
+  margin: 5px 10px;
+}
+
+.color-sample {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.color-label {
+  font-size: 12px;
+}
+
+/* Specific degree colors */
+.color-0 { background-color: #FF0000; } /* C - Red (I) */
+.color-2 { background-color: #FFA500; } /* D - Orange (II) */
+.color-4 { background-color: #FFFF00; } /* E - Yellow (III) */
+.color-5 { background-color: #00FF00; } /* F - Green (IV) */
+.color-7 { background-color: #0000FF; } /* G - Blue (V) */
+.color-9 { background-color: #800080; } /* A - Purple (VI) */
+.color-11 { background-color: #FFC0CB; } /* B - Pink (VII) */
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .boomwhacker-button {
+    background-color: #333;
+    border-color: #555;
+    color: #eee;
+  }
+  
+  .boomwhacker-button:hover {
+    background-color: #444;
+    border-color: #666;
+  }
+  
+  .boomwhacker-button.active {
+    background-color: #1b5e20;
+    border-color: #2e7d32;
+    color: #e8f5e9;
+  }
+  
+  .boomwhacker-legend {
+    background-color: #333;
+    color: #eee;
+  }
+}

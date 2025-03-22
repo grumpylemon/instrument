@@ -1,55 +1,183 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 import { NoteData, Clef } from '../types';
+import debounce from 'lodash/debounce';
+import '../App.css';
+
+// Boomwhacker color map for scale degrees
+const DEGREE_COLORS: { [degree: number]: string } = {
+  0: "#FF0000",  // C - Red (I)
+  2: "#FFA500",  // D - Orange (II)
+  4: "#FFFF00",  // E - Yellow (III)
+  5: "#00FF00",  // F - Green (IV)
+  7: "#0000FF",  // G - Blue (V)
+  9: "#800080",  // A - Purple (VI)
+  11: "#FFC0CB"  // B - Pink (VII)
+};
 
 // Debounce utility to prevent rapid multiple clicks
-const debounce = (func: Function, delay: number) => {
-  let timerId: number | null = null;
-  return (...args: any[]) => {
-    if (timerId) {
-      clearTimeout(timerId);
-    }
-    timerId = window.setTimeout(() => {
-      func(...args);
-      timerId = null;
-    }, delay);
-  };
-};
+// const debounce = (func: Function, delay: number) => {
+//   let timerId: number | null = null;
+//   return (...args: any[]) => {
+//     if (timerId) {
+//       clearTimeout(timerId);
+//     }
+//     timerId = window.setTimeout(() => {
+//       func(...args);
+//       timerId = null;
+//     }, delay);
+//   };
+// };
 
 interface MusicalStaffProps {
   clef: Clef;
   notes: NoteData[];
   onNoteSelect: (note: NoteData) => void;
   selectedNote: NoteData | null;
+  rootNote?: number; // Optional MIDI number of the root note for scale highlighting
+  colorByDegree?: boolean; // Optional prop to enable Boomwhacker coloring
+  keyName?: string; // The key name (e.g., 'C', 'F#', 'Bb') for determining key signature
 }
 
-const MusicalStaff: React.FC<MusicalStaffProps> = ({ clef, notes, onNoteSelect, selectedNote }) => {
+const MusicalStaff: React.FC<MusicalStaffProps> = ({ 
+  clef, 
+  notes, 
+  onNoteSelect, 
+  selectedNote, 
+  rootNote, 
+  colorByDegree,
+  keyName = 'C' // Default to C if not provided
+}) => {
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastClickedElementRef = useRef<string | null>(null);
   const lastClickTimeRef = useRef<number>(0);
   const handleClickRef = React.useRef<((e: MouseEvent) => void) | null>(null) as React.MutableRefObject<((e: MouseEvent) => void) | null>;
   
+  // Helper function to get key signature in fifths based on key name
+  const getKeySignatureByName = (keyName: string): number => {
+    // Map key names directly to fifths
+    const keyNameToFifths: {[key: string]: number} = {
+      'C': 0,     // No sharps or flats
+      'G': 1,     // 1 sharp (F#)
+      'D': 2,     // 2 sharps (F#, C#)
+      'A': 3,     // 3 sharps (F#, C#, G#)
+      'E': 4,     // 4 sharps (F#, C#, G#, D#)
+      'B': 5,     // 5 sharps (F#, C#, G#, D#, A#)
+      'F#': 6,    // 6 sharps (F#, C#, G#, D#, A#, E#)
+      'C#': 7,    // 7 sharps (F#, C#, G#, D#, A#, E#, B#)
+      'F': -1,    // 1 flat (Bb)
+      'Bb': -2,   // 2 flats (Bb, Eb)
+      'Eb': -3,   // 3 flats (Bb, Eb, Ab)
+      'Ab': -4,   // 4 flats (Bb, Eb, Ab, Db)
+      'Db': -5,   // 5 flats (Bb, Eb, Ab, Db, Gb)
+      'Gb': -6,   // 6 flats (Bb, Eb, Ab, Db, Gb, Cb)
+      'Cb': -7    // 7 flats (Bb, Eb, Ab, Db, Gb, Cb, Fb)
+    };
+    
+    return keyNameToFifths[keyName] || 0; // Default to C major (0 fifths) if not found
+  };
+
+  // Helper function to get key signature in fifths based on root note MIDI value
+  const getKeySignatureFifths = (rootMidiNote: number): number => {
+    // Get the pitch class (0-11) of the root note
+    const pitchClass = rootMidiNote % 12;
+    
+    // Map pitch classes to fifths for key signatures
+    // C = 0 fifths, G = 1 fifth, D = 2 fifths, etc.
+    // F = -1 fifth, Bb = -2 fifths, Eb = -3 fifths, etc.
+    const pitchClassToFifths: {[key: number]: number} = {
+      0: 0,    // C major: no sharps or flats
+      7: 1,    // G major: 1 sharp (F#)
+      2: 2,    // D major: 2 sharps (F#, C#)
+      9: 3,    // A major: 3 sharps (F#, C#, G#)
+      4: 4,    // E major: 4 sharps (F#, C#, G#, D#)
+      11: 5,   // B major: 5 sharps (F#, C#, G#, D#, A#)
+      5: -1,   // F major: 1 flat (Bb)
+      10: -2,  // Bb major: 2 flats (Bb, Eb)
+      3: -3,   // Eb major: 3 flats (Bb, Eb, Ab)
+      8: -4,   // Ab major: 4 flats (Bb, Eb, Ab, Db)
+      1: -5,   // Db major: 5 flats (Bb, Eb, Ab, Db, Gb)
+      6: -6    // Gb major: 6 flats (Bb, Eb, Ab, Db, Gb, Cb)
+      // Cb major (7 flats) is added to the keyNameToFifths map
+    };
+    
+    return pitchClassToFifths[pitchClass] || 0; // Default to C major (0 fifths) if not found
+  };
+
+  // Helper to convert MIDI note to MusicXML note information
+  const getMusicXmlNoteInfo = (midiNote: number, keySignatureFifths: number) => {
+    const useFlats = keySignatureFifths < 0; // Negative fifths means flat key signatures
+    
+    // Note names for sharp keys (C, C#, D, D#, E, F, F#, G, G#, A, A#, B)
+    const sharpNoteNames = ['C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B'];
+    const sharpAlterValues = [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0];
+    
+    // Note names for flat keys (C, Db, D, Eb, E, F, Gb, G, Ab, A, Bb, B)
+    const flatNoteNames = ['C', 'D', 'D', 'E', 'E', 'F', 'G', 'G', 'A', 'A', 'B', 'B'];
+    const flatAlterValues = [0, -1, 0, -1, 0, 0, -1, 0, -1, 0, -1, 0];
+    
+    const stepIndex = midiNote % 12;
+    const xmlOctave = Math.floor(midiNote / 12) - 1;
+    
+    // Use flat or sharp notation based on key signature
+    return {
+      step: useFlats ? flatNoteNames[stepIndex] : sharpNoteNames[stepIndex],
+      octave: xmlOctave,
+      alter: useFlats ? flatAlterValues[stepIndex] : sharpAlterValues[stepIndex]
+    };
+  };
+
   // Generate MusicXML for all notes in our range
-  const generateMusicXml = () => {
+  const generateMusicXml = useCallback(() => {
     // Sort notes by MIDI number to ensure correct order
     const sortedNotes = [...notes].sort((a, b) => a.note.midiNote - b.note.midiNote);
     
+    // Get key signature in fifths - prefer keyName over rootNote for accuracy
+    const fifths = keyName ? getKeySignatureByName(keyName) : 
+                   rootNote ? getKeySignatureFifths(rootNote) : 0;
+    
+    // Use the fifths value to determine whether to use flats or sharps for accidentals
+    const useFlats = fifths < 0;
+    
     let notesXml = '';
     sortedNotes.forEach(noteData => {
-      const noteInfo = getMusicXmlNoteInfo(noteData.note.midiNote);
+      // Pass the key signature fifths to correctly determine sharp vs flat notation
+      const noteInfo = getMusicXmlNoteInfo(noteData.note.midiNote, fifths);
       const isSelected = selectedNote && selectedNote.note.midiNote === noteData.note.midiNote;
+      const isRoot = rootNote && isRootNote(noteData.note.midiNote, rootNote);
+      
+      // Determine the color based on selection, root note, or Boomwhacker color
+      let noteheadColor = '';
+      
+      if (isSelected) {
+        // Selection takes highest priority
+        noteheadColor = '#4caf50';
+      } else if (colorByDegree && rootNote) {
+        // Apply Boomwhacker colors if enabled
+        const pitchClass = noteData.note.midiNote % 12;
+        const rootPitchClass = rootNote % 12;
+        const relativeDegree = (pitchClass - rootPitchClass + 12) % 12; // Normalize to 0-11
+        
+        // Use the color map from DEGREE_COLORS
+        if (DEGREE_COLORS[relativeDegree]) {
+          noteheadColor = DEGREE_COLORS[relativeDegree];
+        }
+      } else if (isRoot) {
+        // Just highlight the root note in red if not using Boomwhacker colors
+        noteheadColor = '#e53935';
+      }
       
       notesXml += `
       <note id="note-${noteData.note.midiNote}">
         <pitch>
           <step>${noteInfo.step}</step>
           <octave>${noteInfo.octave}</octave>
-          ${noteInfo.alter ? `<alter>${noteInfo.alter}</alter>` : ''}
+          ${noteInfo.alter !== 0 ? `<alter>${noteInfo.alter}</alter>` : ''}
         </pitch>
         <duration>4</duration>
         <type>quarter</type>
-        ${isSelected ? '<stem>up</stem><notehead color="#4caf50"/>' : '<stem>up</stem>'}
+        ${noteheadColor ? `<stem>up</stem><notehead color="${noteheadColor}"/>` : '<stem>up</stem>'}
         <lyric default-y="-80" justify="center" placement="below">
           <text>${noteData.note.midiNote}</text>
         </lyric>
@@ -69,7 +197,7 @@ const MusicalStaff: React.FC<MusicalStaffProps> = ({ clef, notes, onNoteSelect, 
       <attributes>
         <divisions>1</divisions>
         <key>
-          <fifths>0</fifths>
+          <fifths>${fifths}</fifths>
         </key>
         <time>
           <beats>4</beats>
@@ -84,20 +212,13 @@ const MusicalStaff: React.FC<MusicalStaffProps> = ({ clef, notes, onNoteSelect, 
     </measure>
   </part>
 </score-partwise>`;
-  };
+  }, [clef, notes, rootNote, selectedNote, colorByDegree, keyName]);
 
-  // Helper to convert MIDI note to MusicXML note information
-  const getMusicXmlNoteInfo = (midiNote: number) => {
-    const noteNames = ['C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B'];
-    const alterValues = [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0];
-    const stepIndex = midiNote % 12;
-    const xmlOctave = Math.floor(midiNote / 12) - 1;
-    
-    return {
-      step: noteNames[stepIndex],
-      octave: xmlOctave,
-      alter: alterValues[stepIndex]
-    };
+  // Helper to check if a note is a root note of the scale
+  const isRootNote = (midiNote: number, rootMidiNote: number): boolean => {
+    // A note is a root note if it's the same pitch class as the root note
+    // (i.e., same note in any octave)
+    return (midiNote % 12) === (rootMidiNote % 12);
   };
 
   // Use debounced version of onNoteSelect to prevent double triggering
@@ -108,175 +229,227 @@ const MusicalStaff: React.FC<MusicalStaffProps> = ({ clef, notes, onNoteSelect, 
     [onNoteSelect]
   );
 
-  // Highlight the selected note visually
-  const highlightNote = (midiNote: number) => {
-    if (!containerRef.current) return;
+  // Highlight root notes after OSMD rendering completes
+  const highlightRootNotes = useCallback(() => {
+    if (!rootNote || !containerRef.current) return;
     
+    // Get the SVG element
     const svg = containerRef.current.querySelector('svg');
     if (!svg) return;
     
-    console.log(`Highlighting note: MIDI ${midiNote}`);
+    console.log("Highlighting root notes based on root MIDI:", rootNote);
     
-    try {
-      // Clear previous selections
-      svg.querySelectorAll('.selected').forEach(el => {
+    // Calculate the pitch class of the root note (0-11)
+    const rootPitchClass = rootNote % 12;
+    
+    // Find all text elements with MIDI numbers
+    const textElements = Array.from(svg.querySelectorAll('text'));
+    
+    for (const textElement of textElements) {
+      if (textElement.textContent && !isNaN(parseInt(textElement.textContent))) {
+        const midiNumber = parseInt(textElement.textContent);
+        const isPitchClassRoot = midiNumber % 12 === rootPitchClass;
+        
+        if (isPitchClassRoot) {
+          console.log(`Found root note: MIDI ${midiNumber}`);
+          
+          // Find the notehead associated with this MIDI number
+          // First, get the position of the text
+          const textRect = textElement.getBoundingClientRect();
+          const textX = textRect.left + textRect.width / 2;
+          const textY = textRect.top;
+          
+          // Find notes on the staff
+          const noteElements = Array.from(svg.querySelectorAll('.vf-notehead'));
+          
+          // Find the closest notehead to this text
+          let closestNote: Element | null = null;
+          let minDistance = Infinity;
+          
+          for (const note of noteElements) {
+            const noteRect = note.getBoundingClientRect();
+            const noteX = noteRect.left + noteRect.width / 2;
+            const noteY = noteRect.top + noteRect.height / 2;
+            
+            // Calculate distance between text and notehead
+            const distance = Math.sqrt(
+              Math.pow(textX - noteX, 2) + 
+              Math.pow(textY - noteY, 2)
+            );
+            
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestNote = note;
+            }
+          }
+          
+          // Color the notehead red if found
+          if (closestNote && !closestNote.classList.contains('selected')) {
+            try {
+              // If it's SVG, we need to use style or attributes
+              if (closestNote instanceof SVGElement) {
+                closestNote.setAttribute('fill', '#e53935');
+                closestNote.setAttribute('data-is-root', 'true');
+              } else {
+                (closestNote as HTMLElement).style.fill = '#e53935';
+                (closestNote as HTMLElement).dataset.isRoot = 'true';
+              }
+              console.log("Applied root note styling");
+            } catch (e) {
+              console.error("Error applying root note styling:", e);
+            }
+          }
+        }
+      }
+    }
+  }, [rootNote]);
+
+  // Helper function to highlight selected note
+  const highlightNote = (midiNote: number) => {
+    if (!containerRef.current) return;
+    
+    // Reset any previously highlighted notes
+    const svg = containerRef.current.querySelector('svg');
+    if (!svg) return;
+    
+    // Remove 'selected' class from all elements
+    Array.from(svg.querySelectorAll('.selected')).forEach(el => {
+      el.classList.remove('selected');
+    });
+    
+    // Find the text element with the MIDI number
+    const selectedText = Array.from(svg.querySelectorAll('text')).find(
+      text => text.textContent === midiNote.toString()
+    );
+    
+    // If we found a text element, find the corresponding note
+    if (selectedText) {
+      const textRect = selectedText.getBoundingClientRect();
+      const textX = textRect.left + textRect.width / 2;
+      const textY = textRect.top;  // Use the top of the text element
+      
+      console.log(`Text ${midiNote} position:`, { x: textX, y: textY });
+      
+      // Find notes on the staff
+      const noteElements = Array.from(svg.querySelectorAll('.vf-notehead, .vf-note'));
+      console.log(`Found ${noteElements.length} note elements`);
+      
+      // Different handling based on midi note range and clef
+      const isVeryHighNote = midiNote >= 83; // Special handling for very high notes 83-84
+      const isHighNote = midiNote > 68 && midiNote < 83; // High but not extreme
+      const isInBassClef = clef === 'bass'; // Check if we're in bass clef
+      const isBassClefHighRange = isInBassClef && midiNote >= 52; // Special case for trombone
+      
+      let matchingNote: Element | null = null;
+      let bestDistance = Infinity;
+      
+      // For high notes, focus more on horizontal alignment
+      const verticalWeight = isVeryHighNote ? 0.3 : (isHighNote ? 0.6 : 1.0);
+      const horizontalWeight = isVeryHighNote ? 1.0 : (isHighNote ? 0.8 : 1.0);
+      
+      // For bass clef high range, adjust weights
+      const adjustedVerticalWeight = isBassClefHighRange ? 0.5 : verticalWeight;
+      const adjustedHorizontalWeight = isBassClefHighRange ? 1.0 : horizontalWeight;
+      
+      for (const note of noteElements) {
+        const noteRect = note.getBoundingClientRect();
+        const noteX = noteRect.left + noteRect.width / 2;
+        const noteY = noteRect.top + noteRect.height / 2;
+        
+        // Enhanced weighted distance calculation
+        // - For high notes, prioritize horizontal alignment
+        // - For normal notes, use standard distance
+        // - For bass clef high range, also prioritize horizontal alignment
+        const horizontalDistance = Math.abs(textX - noteX) * adjustedHorizontalWeight;
+        const verticalDistance = Math.abs(textY - noteY) * adjustedVerticalWeight;
+        const weightedDistance = Math.sqrt(
+          Math.pow(horizontalDistance, 2) + 
+          Math.pow(verticalDistance, 2)
+        );
+        
+        // Add extra criteria for very high notes
+        let extraCriteria = 0;
+        if (isVeryHighNote) {
+          // For very high notes, we expect the noteY to be *above* the textY
+          // If it's not, add a penalty
+          if (noteY > textY) {
+            extraCriteria += 30; // Penalty for notes below the text for very high notes
+          }
+        }
+        
+        // Add criteria for bass clef high range
+        if (isBassClefHighRange) {
+          // For bass clef high range, we expect the noteY to be *below* a certain threshold
+          // If it's not, add a penalty
+          const expectedMaxNoteY = textY - 20; // Expected maximum Y position for high bass clef notes
+          if (noteY < expectedMaxNoteY) {
+            extraCriteria += 30; // Penalty for notes too high for bass clef high range
+          }
+        }
+        
+        const finalDistance = weightedDistance + extraCriteria;
+        
+        // Debug log for distance calculation
+        if (finalDistance < 150) {
+          console.log(`Note distance for ${midiNote}: ${finalDistance.toFixed(2)} (h: ${horizontalDistance.toFixed(2)}, v: ${verticalDistance.toFixed(2)}, e: ${extraCriteria})`);
+        }
+        
+        if (finalDistance < bestDistance) {
+          bestDistance = finalDistance;
+          matchingNote = note;
+        }
+      }
+      
+      // Highlight the matching note if found
+      if (matchingNote) {
+        console.log(`Found matching note for MIDI ${midiNote}, distance: ${bestDistance.toFixed(2)}`);
         try {
-          // Use setAttribute which works for both HTML and SVG elements
-          el.setAttribute('class', el.getAttribute('class')?.replace('selected', '') || '');
-        } catch (e) {
-          console.error('Failed to remove selected class:', e);
-        }
-      });
-      
-      // Find all text elements with this MIDI note
-      const textElements = Array.from(svg.querySelectorAll('text'));
-      let selectedText: Element | null = null;
-      
-      for (const text of textElements) {
-        if (text.textContent === midiNote.toString()) {
-          selectedText = text;
-          try {
-            // Use setAttribute instead of classList
-            const currentClass = text.getAttribute('class') || '';
-            text.setAttribute('class', currentClass + ' selected');
-            console.log(`MIDI text ${midiNote} highlighted`);
-          } catch (e) {
-            console.error('Failed to add selected class to text:', e);
+          // Use setAttribute instead of classList
+          const currentClass = (matchingNote as Element).getAttribute('class') || '';
+          (matchingNote as Element).setAttribute('class', currentClass + ' selected');
+          
+          // Find parent note group by traversing up
+          let noteGroup = matchingNote as Element | null;
+          
+          // Find the vf-note parent by traversing up the DOM tree
+          while (noteGroup && 
+                !(noteGroup.getAttribute('class') || '').includes('vf-note') && 
+                noteGroup !== svg) {
+            noteGroup = noteGroup.parentNode as Element;
           }
-          break;
-        }
-      }
-      
-      // If we found a text element, find the corresponding note
-      if (selectedText) {
-        const textRect = selectedText.getBoundingClientRect();
-        const textX = textRect.left + textRect.width / 2;
-        const textY = textRect.top;  // Use the top of the text element
-        
-        console.log(`Text ${midiNote} position:`, { x: textX, y: textY });
-        
-        // Find notes on the staff
-        const noteElements = Array.from(svg.querySelectorAll('.vf-notehead, .vf-note'));
-        console.log(`Found ${noteElements.length} note elements`);
-        
-        // Different handling based on midi note range and clef
-        const isVeryHighNote = midiNote >= 83; // Special handling for very high notes 83-84
-        const isHighNote = midiNote > 68 && midiNote < 83; // High but not extreme
-        const isInBassClef = clef === 'bass'; // Check if we're in bass clef
-        const isBassClefHighRange = isInBassClef && midiNote >= 52; // Special case for trombone
-        
-        let matchingNote: Element | null = null;
-        let bestDistance = Infinity;
-        
-        noteElements.forEach(note => {
-          const noteRect = note.getBoundingClientRect();
-          const noteX = noteRect.left + noteRect.width / 2;
-          const noteY = noteRect.top + noteRect.height / 2;
           
-          const horizontalDistance = Math.abs(noteX - textX);
-          const verticalDistance = textY - noteY; // Note should be above text (positive value)
-          
-          // Log the current note element being checked
-          console.log(`Checking note element:`, { 
-            noteX, 
-            noteY, 
-            horizontalDist: horizontalDistance,
-            verticalDist: verticalDistance,
-            element: note.tagName,
-            classList: note.getAttribute('class')
-          });
-          
-          // Different matching logic based on note type
-          if (isVeryHighNote) {
-            // For extremely high notes (83-84), relax horizontal constraint further
-            // and search in a wider vertical range
-            if (horizontalDistance < 50 && verticalDistance > 0 && verticalDistance < 200) {
-              const distance = horizontalDistance + Math.abs(verticalDistance) * 0.3;
-              console.log(`Very high note (${midiNote}) potential match: distance=${distance.toFixed(2)}`);
-              
-              if (distance < bestDistance) {
-                bestDistance = distance;
-                matchingNote = note;
-              }
-            }
-          } else if (isBassClefHighRange) {
-            // Special case for trombone bass clef high range (52+)
-            // These may have different positioning compared to treble clef
-            if (horizontalDistance < 40) {
-              // In bass clef, the relationship between text and note might be different
-              // We care more about horizontal alignment
-              const distance = horizontalDistance * 3 + Math.abs(verticalDistance) * 0.5;
-              console.log(`Bass clef high range (${midiNote}) potential match: distance=${distance.toFixed(2)}`);
-              
-              if (distance < bestDistance && distance < 200) {
-                bestDistance = distance;
-                matchingNote = note;
-              }
-            }
-          } else if (isHighNote) {
-            // For high notes, look for notes that are horizontally aligned and above the text
-            if (horizontalDistance < 30 && verticalDistance > 0) {
-              const distance = horizontalDistance * 2 + Math.abs(verticalDistance) * 0.5;
-              console.log(`High note (${midiNote}) potential match: distance=${distance.toFixed(2)}`);
-              
-              if (distance < bestDistance) {
-                bestDistance = distance;
-                matchingNote = note;
-              }
-            }
-          } else {
-            // For regular notes, use more standard distance calculation
-            const distance = horizontalDistance * 2 + Math.abs(verticalDistance);
-            if (distance < bestDistance && distance < 80) {
-              bestDistance = distance;
-              matchingNote = note;
-            }
-          }
-        });
-        
-        // Highlight the matching note if found
-        if (matchingNote) {
-          console.log(`Found matching note for MIDI ${midiNote}, distance: ${bestDistance.toFixed(2)}`);
-          try {
-            // Use setAttribute instead of classList
-            const currentClass = (matchingNote as Element).getAttribute('class') || '';
-            (matchingNote as Element).setAttribute('class', currentClass + ' selected');
+          // Only proceed if we found a valid note group
+          if (noteGroup && (noteGroup.getAttribute('class') || '').includes('vf-note')) {
+            const currentClass = (noteGroup as Element).getAttribute('class') || '';
+            (noteGroup as Element).setAttribute('class', currentClass + ' selected');
             
-            // Find parent note group by traversing up
-            let noteGroup = matchingNote as Element | null;
-            
-            // Find the vf-note parent by traversing up the DOM tree
-            while (noteGroup && 
-                  !(noteGroup.getAttribute('class') || '').includes('vf-note') && 
-                  noteGroup !== svg) {
-              noteGroup = noteGroup.parentNode as Element;
-            }
-            
-            // Only proceed if we found a valid note group
-            if (noteGroup && (noteGroup.getAttribute('class') || '').includes('vf-note')) {
-              const currentClass = (noteGroup as Element).getAttribute('class') || '';
-              (noteGroup as Element).setAttribute('class', currentClass + ' selected');
-              
-              // Highlight all components
-              const components = (noteGroup as Element).querySelectorAll('.vf-stem, .vf-notehead');
-              Array.from(components).forEach((component: Element) => {
-                try {
-                  const currentClass = component.getAttribute('class') || '';
-                  component.setAttribute('class', currentClass + ' selected');
-                } catch (e) {
-                  console.error('Failed to add selected class to component:', e);
+            // Highlight all components
+            const components = (noteGroup as Element).querySelectorAll('.vf-stem, .vf-notehead');
+            Array.from(components).forEach((component: Element) => {
+              try {
+                const currentClass = component.getAttribute('class') || '';
+                component.setAttribute('class', currentClass + ' selected');
+                
+                // If this is a root note that was previously colored red,
+                // make sure the selection color takes precedence
+                if (component.hasAttribute('data-is-root')) {
+                  if (component instanceof SVGElement) {
+                    component.setAttribute('fill', '#4caf50'); // Green selection color
+                  } else {
+                    (component as HTMLElement).style.fill = '#4caf50';
+                  }
                 }
-              });
-            }
-          } catch (e) {
-            console.error('Failed to add selected class to note:', e);
+              } catch (e) {
+                console.error('Failed to add selected class to component:', e);
+              }
+            });
           }
-        } else {
-          console.warn(`No matching note found for MIDI ${midiNote}`);
+        } catch (e) {
+          console.error('Failed to add selected class to note:', e);
         }
+      } else {
+        console.warn(`No matching note found for MIDI ${midiNote}`);
       }
-    } catch (e) {
-      console.error('Error in highlightNote:', e);
     }
   };
 
@@ -455,85 +628,50 @@ const MusicalStaff: React.FC<MusicalStaffProps> = ({ clef, notes, onNoteSelect, 
     };
   }, [clef, notes, onNoteSelect, highlightNote]);
 
+  // Effect to re-render the music when notes, clef, selection, or root note changes
   useEffect(() => {
-    if (!containerRef.current) return;
-    
-    // Clear previous content
-    containerRef.current.innerHTML = '';
-    
-    // Create container for OSMD
-    const osmdContainer = document.createElement('div');
-    osmdContainer.id = 'osmd-container';
-    containerRef.current.appendChild(osmdContainer);
-    
-    // Initialize OSMD
-    osmdRef.current = new OpenSheetMusicDisplay(osmdContainer, {
-      autoResize: false, // Disable auto resize to maintain fixed note size
-      drawingParameters: 'compact',
-      drawPartNames: false,
-      drawTitle: false,
-      drawSubtitle: false,
-      drawComposer: false,
-      drawLyricist: false,
-      drawMeasureNumbers: false,
-      renderSingleHorizontalStaffline: true,
-      drawCredits: false,
-      followCursor: false
-    });
-    
-    // Apply scale transformation after rendering
-    osmdRef.current.zoom = 1.0; // This is the correct way to set scale in OSMD
-
-    // Style the container for horizontal scrolling
-    osmdContainer.style.overflowX = 'auto';
-    osmdContainer.style.overflowY = 'hidden';
-    osmdContainer.style.width = '100%';
-    osmdContainer.style.maxWidth = '100%';
-    osmdContainer.style.whiteSpace = 'nowrap';
-
-    // Set a minimum width based on the number of notes to ensure proper spacing
-    const minWidth = Math.max(notes.length * 40, 800); // 40px per note, minimum 800px
-    osmdContainer.style.minWidth = `${minWidth}px`;
-    
-    // Load and render music
-    const xml = generateMusicXml();
-    osmdRef.current.load(xml)
-      .then(() => {
-        osmdRef.current?.render();
-        
-        // Apply fixed zoom level after rendering to ensure consistent note size
-        if (osmdRef.current) {
-          osmdRef.current.zoom = 1.0;
+    if (containerRef.current) {
+      console.log("Rendering OSMD with notes:", notes.length);
+      if (!osmdRef.current) {
+        osmdRef.current = new OpenSheetMusicDisplay(containerRef.current);
+        osmdRef.current.setOptions({
+          backend: "svg",
+          drawTitle: false,
+          drawSubtitle: false,
+          drawPartNames: false,
+          drawComposer: false,
+          drawLyricist: false,
+          drawFingerings: true,
+          drawMeasureNumbers: false,
+          drawTimeSignatures: false,
+          autoResize: true
+        });
+      }
+      
+      const musicXml = generateMusicXml();
+      console.log("Generated MusicXML");
+      
+      osmdRef.current.load(musicXml)
+        .then(() => {
+          console.log("Music XML loaded");
+          osmdRef.current?.render();
+          console.log("OSMD rendered");
           
-          // If in advanced mode (more notes), ensure we have proper width
-          if (notes.length > 30) {
-            const staffWidth = Math.max(notes.length * 35, 1000);
-            const svgElement = osmdContainer.querySelector('svg');
-            if (svgElement) {
-              svgElement.style.width = `${staffWidth}px`;
-              svgElement.setAttribute('width', `${staffWidth}`);
-            }
+          // When colorByDegree is enabled, the colors are already in the MusicXML
+          // Only apply rootNote highlighting if not using Boomwhacker colors
+          if (!colorByDegree) {
+            highlightRootNotes();
           }
-        }
-        
-        // Wait for rendering to complete
-        setTimeout(() => {
-          // Highlight the selected note if any
+          
           if (selectedNote) {
             highlightNote(selectedNote.note.midiNote);
           }
-          
-          // Add helper text
-          const helper = document.createElement('div');
-          helper.className = 'note-click-helper';
-          helper.textContent = 'Click on any note or the number below it to select';
-          containerRef.current?.appendChild(helper);
-        }, 100);
-      })
-      .catch(err => console.error('Error rendering music:', err));
-    
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clef, notes, onNoteSelect, selectedNote]);
+        })
+        .catch(error => {
+          console.error("Error loading MusicXML:", error);
+        });
+    }
+  }, [notes, clef, selectedNote, rootNote, highlightRootNotes, generateMusicXml]);
   
   return (
     <div className="staff-container">
