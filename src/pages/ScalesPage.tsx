@@ -576,7 +576,20 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
         </button>
         
         {showAudioSettings && (
-          <div className="audio-settings-panel">
+          <div className="audio-settings-panel" style={{ 
+            position: 'relative', 
+            right: 'auto', 
+            top: 'auto',
+            height: 'auto',
+            width: '100%',
+            backgroundColor: '#f9f9f9',
+            borderRadius: '8px',
+            padding: '15px',
+            boxShadow: '0 2px 5px rgba(0, 0, 0, 0.1)',
+            zIndex: 1,
+            boxSizing: 'border-box',
+            marginTop: '10px'
+          }}>
             <div className="control-group">
               <label htmlFor="sound-type">Sound Style</label>
               <select

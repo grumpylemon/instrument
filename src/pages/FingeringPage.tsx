@@ -693,7 +693,20 @@ const FingeringPage: React.FC<FingeringPageProps> = () => {
 
       {/* Fix audio settings panel visibility */}
       {showAudioSettings && (
-        <div className="audio-settings-panel" style={{ position: 'relative', right: 0 }}>
+        <div className="audio-settings-panel" style={{ 
+          position: 'relative', 
+          right: 'auto', 
+          top: 'auto',
+          height: 'auto',
+          width: '100%',
+          backgroundColor: '#f9f9f9',
+          borderRadius: '8px',
+          padding: '15px',
+          boxShadow: '0 2px 5px rgba(0, 0, 0, 0.1)',
+          zIndex: 1,
+          boxSizing: 'border-box',
+          marginTop: '10px'
+        }}>
           <div className="audio-controls-row">
             <div className="audio-status-container">
               <div className={`audio-status ${audioInitialized ? 'active' : ''}`}>

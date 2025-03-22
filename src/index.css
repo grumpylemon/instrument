@@ -28,8 +28,14 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--background-color);
+  background-color: #f5d78e; /* Golden yellow color */
   color: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #d4b056; /* Darker golden yellow for dark mode */
+  }
 }
 
 code {
