@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import '../App.css';
 import MusicalStaff from '../components/MusicalStaff';
 import { NoteData, TRUMPET_NOTES, TROMBONE_NOTES, RECORDER_NOTES, OCARINA_NOTES, Instrument, Clef, InstrumentPitch, getMidiNoteName } from '../types';
 import { initializeAudio, playNote, stopAllSounds, stopActiveNotes, unlockAudioContext } from '../utils/audioUtils';
+import TimeStamp from '../components/TimeStamp';
 
 // Scale patterns in semitones
 const SCALE_PATTERNS = {
@@ -771,6 +772,8 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
           Click on any note to see its fingering. Use the Play button to hear the scale with correct fingerings.
         </p>
       </div>
+      
+      <TimeStamp />
     </div>
   );
 };

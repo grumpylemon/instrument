@@ -3,6 +3,7 @@ import '../App.css';
 import MusicalStaff from '../components/MusicalStaff';
 import { NoteData, TRUMPET_NOTES, TROMBONE_NOTES, RECORDER_NOTES, OCARINA_NOTES, Instrument, Clef, InstrumentPitch, getMidiNoteName } from '../types';
 import { initializeAudio, playNote, stopAllSounds, stopActiveNotes, unlockAudioContext } from '../utils/audioUtils';
+import TimeStamp from '../components/TimeStamp';
 
 interface FingeringPageProps {}
 
@@ -837,6 +838,8 @@ const FingeringPage: React.FC<FingeringPageProps> = () => {
       )}
       
       {renderKeyboardInstructions()}
+      
+      <TimeStamp />
     </div>
   );
 };
