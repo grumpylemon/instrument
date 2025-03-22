@@ -1,25 +1,44 @@
 import React from 'react';
-import logo from './logo.svg';
+import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import './App.css';
+import FingeringPage from './pages/FingeringPage';
+import ScalesPage from './pages/ScalesPage';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <div className="app-container">
+        <header className="app-header">
+          <h1>Brass & Wind Instrument Explorer</h1>
+          <nav className="main-nav">
+            <NavLink 
+              to="/" 
+              className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
+              end
+            >
+              Fingering Chart
+            </NavLink>
+            <NavLink 
+              to="/scales" 
+              className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
+            >
+              Scales Practice
+            </NavLink>
+          </nav>
+        </header>
+        
+        <main className="app-content">
+          <Routes>
+            <Route path="/" element={<FingeringPage />} />
+            <Route path="/scales" element={<ScalesPage />} />
+          </Routes>
+        </main>
+        
+        <footer className="app-footer">
+          <p>Created for music students and educators</p>
+        </footer>
+      </div>
+    </Router>
   );
 }
 
