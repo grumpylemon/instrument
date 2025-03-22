@@ -119,7 +119,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
   // Effect to generate scale notes when scale type, key, or instrument changes
   useEffect(() => {
     generateScaleNotes();
-  }, [scaleType, key, instrument, expandedRange]);
+  }, [scaleType, key, instrument, expandedRange, clef]);
   
   // Function to generate scale notes based on selected parameters
   const generateScaleNotes = () => {
