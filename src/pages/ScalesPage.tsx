@@ -126,7 +126,11 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     const keyIndex = KEYS.indexOf(key);
     if (keyIndex === -1) return;
     
-    const rootMidiNote = 60 + keyIndex; // C4 (MIDI 60) + semitones for key
+    // Use C3 (MIDI 48) for bass clef instruments in single octave mode
+    // Use C4 (MIDI 60) for treble clef instruments or extended range
+    const baseRootNote = clef === 'bass' ? 48 : 60; // C3 vs C4
+    const rootMidiNote = baseRootNote + keyIndex; // Base note + semitones for key
+    
     const scalePattern = SCALE_PATTERNS[scaleType];
     
     let allScaleMidiNotes: number[] = [];
