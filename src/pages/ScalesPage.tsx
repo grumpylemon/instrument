@@ -129,20 +129,47 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     const rootMidiNote = 60 + keyIndex; // C4 (MIDI 60) + semitones for key
     const scalePattern = SCALE_PATTERNS[scaleType];
     
-    const octaves = expandedRange ? 4 : 1;
     let allScaleMidiNotes: number[] = [];
     
-    // Generate scale across multiple octaves if expanded range is enabled
-    for (let octave = 0; octave < octaves; octave++) {
-      const octaveOffset = octave * 12;
-      const octaveNotes = scalePattern.map(semitones => rootMidiNote + semitones + octaveOffset);
+    if (expandedRange) {
+      // Get the lowest and highest MIDI notes available for the current instrument
+      const lowestNote = baseNotes.reduce((min, note) => 
+        note.note.midiNote < min ? note.note.midiNote : min, 
+        Number.MAX_SAFE_INTEGER
+      );
       
-      // Don't duplicate the root note when connecting octaves
-      if (octave > 0) {
-        octaveNotes.shift(); // Remove the first note (root) for subsequent octaves
+      const highestNote = baseNotes.reduce((max, note) => 
+        note.note.midiNote > max ? note.note.midiNote : max, 
+        0
+      );
+      
+      console.log(`Instrument range: ${lowestNote} to ${highestNote}`);
+      
+      // Find the lowest root note of the scale (key) that is still within the instrument's range
+      let currentRoot = rootMidiNote;
+      while (currentRoot - 12 >= lowestNote) {
+        currentRoot -= 12; // Go down an octave
       }
       
-      allScaleMidiNotes = [...allScaleMidiNotes, ...octaveNotes];
+      // Generate the scale notes across the full range
+      while (currentRoot <= highestNote) {
+        const octaveNotes = scalePattern.map(semitones => currentRoot + semitones);
+        
+        // Don't add notes beyond the instrument's range
+        const validNotes = octaveNotes.filter(midiNote => midiNote <= highestNote);
+        
+        // Don't duplicate the root note when connecting octaves
+        if (allScaleMidiNotes.length > 0 && validNotes.length > 0) {
+          validNotes.shift(); // Remove the first note (root) for subsequent octaves
+        }
+        
+        allScaleMidiNotes = [...allScaleMidiNotes, ...validNotes];
+        currentRoot += 12; // Go up an octave for the next iteration
+      }
+    } else {
+      // Standard behavior for single octave
+      const octaveNotes = scalePattern.map(semitones => rootMidiNote + semitones);
+      allScaleMidiNotes = [...octaveNotes];
     }
     
     // Map MIDI notes to actual note data from our instrument
@@ -160,6 +187,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     }).filter(Boolean); // Remove any undefined notes
     
     setScaleNotes(scaleNotesData as NoteData[]);
+    console.log(`Generated ${scaleNotesData.length} notes for the scale (expanded: ${expandedRange})`);
     
     // Reset current note index
     setCurrentNoteIndex(-1);
@@ -566,7 +594,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
               className={`expand-button ${expandedRange ? 'expanded' : ''}`}
               onClick={toggleExpandedRange}
             >
-              {expandedRange ? 'Single Octave' : 'Extended Range (4 Octaves)'}
+              {expandedRange ? 'Single Octave' : 'Full Instrument Range'}
             </button>
           </div>
         </div>
