@@ -149,9 +149,11 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
       // First, find how many semitones we need to cover the full range
       const totalRange = highestNote - lowestNote;
       
-      // Find a root note that's below the instrument's lowest note
+      // Find a root note that's much lower than the instrument's lowest note
+      // to ensure we catch all possible scale tones
       let lowestRoot = rootMidiNote;
-      while (lowestRoot > lowestNote) {
+      // Go down multiple octaves to ensure we're below the instrument's lowest note
+      while (lowestRoot > lowestNote - 24) { // Go at least 2 octaves below the lowest note
         lowestRoot -= 12; // Go down an octave
       }
       
@@ -160,11 +162,41 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
       const possibleNotes: number[] = [];
       
       // Generate enough octaves to cover the entire range plus some extra
-      const octavesToGenerate = Math.ceil(totalRange / 12) + 2;
+      const octavesToGenerate = Math.ceil(totalRange / 12) + 4; // Add more octaves for better coverage
       
       for (let octave = 0; octave < octavesToGenerate; octave++) {
         const octaveRoot = lowestRoot + (octave * 12);
-        scalePattern.forEach(semitones => {
+        
+        // For C Major scale in key of C, standard pattern is [0,2,4,5,7,9,11,12]
+        // This represents [C,D,E,F,G,A,B,C]
+        // 
+        // We also want to include extended patterns to get notes below the root
+        // For example [-5,-3,-1] would give us [G,A,B] below the root C
+        
+        // Generate the standard pattern for this octave
+        const extendedPattern = [...scalePattern];
+        
+        // Add notes below this octave's root that are part of the scale
+        // by including scale tones from the previous octave
+        if (octave > 0) {
+          // Add notes that would be from the previous octave's pattern
+          scalePattern.forEach(semitone => {
+            // For each semitone in the pattern, add the equivalent 
+            // notes from the octave below (by subtracting 12)
+            if (semitone > 0) { // Only add non-root notes
+              const belowSemitone = semitone - 12;
+              if (!extendedPattern.includes(belowSemitone)) {
+                extendedPattern.push(belowSemitone);
+              }
+            }
+          });
+          
+          // Sort the extended pattern to ensure proper order
+          extendedPattern.sort((a, b) => a - b);
+        }
+        
+        // Generate notes using the extended pattern
+        extendedPattern.forEach(semitones => {
           const noteValue = octaveRoot + semitones;
           // Don't add duplicates
           if (!possibleNotes.includes(noteValue)) {
@@ -179,6 +211,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
         .sort((a, b) => a - b); // Sort in ascending order
       
       console.log(`Generated ${allScaleMidiNotes.length} candidate notes across the instrument range`);
+      console.log(`Range from ${allScaleMidiNotes[0]} to ${allScaleMidiNotes[allScaleMidiNotes.length-1]}`);
     } else {
       // Standard behavior for single octave
       const octaveNotes = scalePattern.map(semitones => rootMidiNote + semitones);
