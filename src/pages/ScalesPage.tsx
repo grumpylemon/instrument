@@ -60,6 +60,9 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
   // References for playback
   const playbackInterval = useRef<NodeJS.Timeout | null>(null);
   
+  // Add new state for audio settings panel
+  const [showAudioSettings, setShowAudioSettings] = useState<boolean>(false);
+  
   // Get notes based on selected instrument
   const baseNotes = instrument === 'trumpet' 
     ? TRUMPET_NOTES 
@@ -554,10 +557,56 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     );
   };
   
+  // Add toggle function for audio settings
+  const toggleAudioSettings = () => {
+    setShowAudioSettings(!showAudioSettings);
+  };
+  
   return (
     <div className="page-content">
       <h2 className="page-title">Musical Scales Practice</h2>
       
+      {/* Audio Settings Panel - Collapsible */}
+      <div className="audio-settings-container">
+        <button 
+          className={`audio-settings-toggle ${showAudioSettings ? 'active' : ''}`}
+          onClick={toggleAudioSettings}
+        >
+          🔊 Audio Settings {showAudioSettings ? '▲' : '▼'}
+        </button>
+        
+        {showAudioSettings && (
+          <div className="audio-settings-panel">
+            <div className="control-group">
+              <label htmlFor="sound-type">Sound Style</label>
+              <select
+                id="sound-type"
+                className="control-select"
+                value={soundType}
+                onChange={handleSoundTypeChange}
+              >
+                <option value="default">Default</option>
+                <option value="bright">Bright</option>
+                <option value="mellow">Mellow</option>
+                <option value="brilliant">Brilliant</option>
+                <option value="warm">Warm</option>
+                <option value="piano">Piano</option>
+                <option value="synth">Synth</option>
+              </select>
+            </div>
+            
+            <button 
+              className="init-audio-button"
+              onClick={handleInitAudio}
+              disabled={audioInitialized}
+            >
+              {audioInitialized ? '✓ Audio Ready' : '🔊 Initialize Audio'}
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* Main Controls - Keep at top */}
       <div className="scales-controls">
         <div className="controls-row">
           <div className="control-group">
@@ -621,35 +670,6 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
             />
           </div>
           
-          <div className="control-group playback-controls">
-            <button
-              className={`play-button ${isPlaying ? 'playing' : ''}`}
-              onClick={isPlaying ? stopScale : playScale}
-              disabled={!audioInitialized || scaleNotes.length === 0}
-            >
-              {isPlaying ? '⏹ Stop' : '▶ Play Scale'}
-            </button>
-            
-            <button 
-              className="init-audio-button"
-              onClick={handleInitAudio}
-              disabled={audioInitialized}
-            >
-              {audioInitialized ? '✓ Audio Ready' : '🔊 Initialize Audio'}
-            </button>
-          </div>
-          
-          <div className="control-group">
-            <button
-              className={`expand-button ${expandedRange ? 'expanded' : ''}`}
-              onClick={toggleExpandedRange}
-            >
-              {expandedRange ? 'Single Octave' : 'Full Instrument Range'}
-            </button>
-          </div>
-        </div>
-        
-        <div className="controls-row audio-settings">
           <div className="control-group">
             <label htmlFor="volume">Volume: {Math.round(volume * 100)}%</label>
             <input
@@ -665,21 +685,12 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
           </div>
           
           <div className="control-group">
-            <label htmlFor="sound-type">Sound Style</label>
-            <select
-              id="sound-type"
-              className="control-select"
-              value={soundType}
-              onChange={handleSoundTypeChange}
+            <button
+              className={`expand-button ${expandedRange ? 'expanded' : ''}`}
+              onClick={toggleExpandedRange}
             >
-              <option value="default">Default</option>
-              <option value="bright">Bright</option>
-              <option value="mellow">Mellow</option>
-              <option value="brilliant">Brilliant</option>
-              <option value="warm">Warm</option>
-              <option value="piano">Piano</option>
-              <option value="synth">Synth</option>
-            </select>
+              {expandedRange ? 'Single Octave' : 'Full Instrument Range'}
+            </button>
           </div>
         </div>
       </div>
@@ -695,7 +706,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
         </p>
       </div>
       
-      {/* Fingering display */}
+      {/* Fingering display - Moved directly above the musical staff */}
       {selectedNote && (
         <div className="note-info">
           <div className="fingering-display">
@@ -730,6 +741,17 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
           selectedNote={selectedNote}
         />
       )}
+      
+      {/* Play button - Moved directly below the musical staff */}
+      <div className="play-button-container">
+        <button
+          className={`play-button ${isPlaying ? 'playing' : ''}`}
+          onClick={isPlaying ? stopScale : playScale}
+          disabled={!audioInitialized || scaleNotes.length === 0}
+        >
+          {isPlaying ? '⏹ Stop' : '▶ Play Scale'}
+        </button>
+      </div>
       
       <div className="scale-instructions">
         <p>
