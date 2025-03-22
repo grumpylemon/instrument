@@ -3,7 +3,7 @@ import '../App.css';
 import MusicalStaff from '../components/MusicalStaff';
 import { NoteData, TRUMPET_NOTES, TROMBONE_NOTES, RECORDER_NOTES, OCARINA_NOTES, Instrument, Clef, InstrumentPitch, getMidiNoteName } from '../types';
 import { initializeAudio, playNote, stopAllSounds, stopActiveNotes } from '../utils/audioUtils';
-import { start } from 'tone';
+import * as Tone from 'tone';
 
 interface FingeringPageProps {}
 
@@ -224,7 +224,7 @@ const FingeringPage: React.FC<FingeringPageProps> = () => {
     const unlockAudio = async () => {
       console.log('Attempting to unlock Tone audio with user interaction');
       try {
-        await start();
+        await Tone.context.resume();
         console.log('Audio context resumed.');
       } catch (error) {
         console.error('Error starting Tone audio context:', error);
@@ -253,7 +253,7 @@ const FingeringPage: React.FC<FingeringPageProps> = () => {
     setSelectedNote(note);
     if (audioInitialized) {
       try {
-        await start();
+        await Tone.context.resume();
         console.log('Tone audio context resumed in note selection.');
       } catch (e) {
         console.error('Error unlocking Tone audio context:', e);
@@ -597,7 +597,7 @@ const FingeringPage: React.FC<FingeringPageProps> = () => {
       <div id="tempAudioUnlock" style={{ margin: '10px', padding: '10px', backgroundColor: '#ffd', textAlign: 'center' }}>
         <button onClick={async () => {
           try {
-            await start();
+            await Tone.context.resume();
             console.log('Audio context resumed manually via button.');
           } catch (error) {
             console.error('Manual unlock failed:', error);
