@@ -1,5 +1,5 @@
 import React from 'react';
-import { getFormattedTimestamp } from '../utils/timeUtils';
+import { getFormattedTimestamp, getBuildInfo } from '../utils/timeUtils';
 
 const TimeStamp: React.FC = () => {
   return (
@@ -11,7 +11,8 @@ const TimeStamp: React.FC = () => {
       padding: '5px',
       borderTop: '1px solid #eee'
     }}>
-      {getFormattedTimestamp()}
+      <div>{getFormattedTimestamp()}</div>
+      <div>Brass & Wind Instrument Explorer {getBuildInfo()}</div>
     </div>
   );
 };

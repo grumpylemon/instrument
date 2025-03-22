@@ -7888,6 +7888,7 @@ body {
   position: relative;
   overflow: hidden;
   padding: 20px;
+}
 :root {
   --primary-color: #3f51b5;
   --accent-color: #4caf50;

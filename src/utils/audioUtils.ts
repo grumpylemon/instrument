@@ -1,9 +1,20 @@
 import { InstrumentPitch } from '../types';
+import * as Tone from 'tone';
 
-// Create audio context
+// Global audio context
 let audioContext: AudioContext | null = null;
 let gainNode: GainNode | null = null;
-const activeOscillators: Map<number, OscillatorNode[]> = new Map();
+let activeNotes: { oscillator: OscillatorNode, gainNode: GainNode, nodes: AudioNode[] }[] = [];
+
+// Flag to track if audio is initialized
+let isAudioInitialized = false;
+
+// Soundfont support
+let soundfontSynth: any = null;
+let soundfontLoaded = false;
+
+// Create audio context
+let activeOscillators: Map<number, OscillatorNode[]> = new Map();
 
 // Track active oscillators to stop them properly
 let activeOscillatorsList: {oscillator: OscillatorNode, gain: GainNode}[] = [];
@@ -38,84 +49,268 @@ const midiToFrequency = (midiNote: number): number => {
 };
 
 /**
- * Initialize the audio system
+ * Initialize the audio context
  */
-export const initializeAudio = async (): Promise<void> => {
-  try {
-    // Create context if not exists
-    if (!audioContext) {
-      audioContext = createAudioContext();
-    }
-    
-    // Try to resume if suspended
-    if (audioContext.state === 'suspended') {
-      try {
-        await audioContext.resume();
-        console.log('Audio context resumed');
-      } catch (e) {
-        console.error('Failed to resume audio context:', e);
+export const initializeAudio = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    try {
+      if (!audioContext) {
+        // Use the AudioContext from Tone.js
+        // @ts-ignore
+        audioContext = Tone.context.rawContext || Tone.context; 
+        console.log("Audio context created:", audioContext);
+        
+        if (!gainNode) {
+          // Create a master gain node
+          gainNode = audioContext.createGain();
+          gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+          gainNode.connect(audioContext.destination);
+          console.log("Master gain node created");
+        }
+        
+        // Initialize Soundfont
+        initializeSoundfont().then(success => {
+          isAudioInitialized = true;
+          console.log("Audio initialization completed, soundfont loaded:", success);
+          resolve(true);
+        }).catch(error => {
+          console.error("Soundfont initialization failed, using fallback sounds:", error);
+          isAudioInitialized = true;
+          resolve(true);
+        });
+      } else {
+        console.log("Audio was already initialized");
+        isAudioInitialized = true;
+        resolve(true);
       }
+    } catch (error) {
+      console.error("Error initializing audio:", error);
+      resolve(false);
+    }
+  });
+};
+
+/**
+ * Initialize the Soundfont synthesizer
+ */
+const initializeSoundfont = async (): Promise<boolean> => {
+  try {
+    if (soundfontLoaded) {
+      return true;
     }
     
-    // Create gain node if not exists
-    if (!gainNode) {
-      gainNode = audioContext.createGain();
-      gainNode.gain.value = 0.7;
-      gainNode.connect(audioContext.destination);
+    // Check if the Web Audio API supports AudioWorklet
+    const hasAudioWorklet = 'audioWorklet' in AudioContext.prototype;
+    
+    if (hasAudioWorklet) {
+      // Modern browsers with AudioWorklet support
+      console.log("Using Tone.js Sampler for soundfont playback");
+      
+      // Create Tone.js based synthesizer using samples
+      if (!soundfontSynth) {
+        // We'll set up basic instruments first and then load the soundfont if available
+        soundfontSynth = new Tone.Sampler({
+          urls: {
+            "C4": "piano-c4.mp3",
+          },
+          baseUrl: "/soundfonts/",
+          onload: () => {
+            console.log("Basic sampler loaded");
+          }
+        }).toDestination();
+        
+        // Try to load the FluidR3_GM.sf2 soundfont
+        // This requires a Soundfont player library or conversion to individual samples
+        // We'll check if the soundfont file exists
+        fetch('/soundfonts/FluidR3_GM.sf2')
+          .then(response => {
+            if (response.ok) {
+              console.log("FluidR3_GM.sf2 soundfont is available");
+              soundfontLoaded = true;
+            } else {
+              console.log("FluidR3_GM.sf2 soundfont not found, using basic sounds");
+            }
+          })
+          .catch(error => {
+            console.error("Error checking soundfont:", error);
+          });
+      }
+      
+      return true;
+    } else {
+      // Fallback for browsers without AudioWorklet support
+      console.log("AudioWorklet not supported, using basic oscillators");
+      return false;
     }
-    
-    // Play a silent sound to "wake up" audio on iOS
-    const silentOsc = audioContext.createOscillator();
-    silentOsc.frequency.value = 440;
-    const silentGain = audioContext.createGain();
-    silentGain.gain.value = 0.00001; // Nearly silent
-    silentOsc.connect(silentGain);
-    silentGain.connect(audioContext.destination);
-    silentOsc.start();
-    silentOsc.stop(audioContext.currentTime + 0.1);
-    
-    console.log('Audio initialized successfully: state =', audioContext.state);
-    return Promise.resolve();
   } catch (error) {
-    console.error('Failed to initialize audio:', error);
-    return Promise.reject(error);
+    console.error("Error initializing soundfont:", error);
+    return false;
   }
 };
 
 /**
- * Stop any currently playing notes
+ * Unlock the audio context on mobile devices
  */
-export const stopActiveNotes = (): void => {
-  console.log(`Stopping ${activeOscillatorsList.length} active oscillators`);
-  
-  if (audioContext && activeOscillatorsList.length > 0) {
-    // Fade out all active oscillators
-    activeOscillatorsList.forEach(({oscillator, gain}) => {
-      try {
-        // Quick fade out to avoid clicks
-        const now = audioContext!.currentTime;
-        gain.gain.cancelScheduledValues(now);
-        gain.gain.setValueAtTime(gain.gain.value, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.05);
-        
-        // Schedule oscillator to stop after fade out
-        setTimeout(() => {
-          try {
-            oscillator.stop();
-            oscillator.disconnect();
-            gain.disconnect();
-          } catch (e) {
-            // Ignore errors from already stopped oscillators
-          }
-        }, 60);
-      } catch (e) {
-        console.warn('Error stopping oscillator:', e);
-      }
-    });
-    
-    // Clear the array
-    activeOscillatorsList = [];
+export const unlockAudioContext = async (): Promise<boolean> => {
+  try {
+    if (audioContext && audioContext.state !== 'running') {
+      console.log("Attempting to resume audio context. Current state:", audioContext.state);
+      await Tone.start();
+      console.log("Tone.start() called, new audio context state:", audioContext.state);
+      return true;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error unlocking audio context:", error);
+    return false;
   }
+};
+
+/**
+ * Play a note with the given MIDI number
+ */
+export const playNote = (
+  instrument: string,
+  midiNumber: number,
+  pitch: string = 'C',
+  duration: number = 1,
+  volume: number = 0.7,
+  soundType: string = 'default'
+): void => {
+  if (!audioContext) {
+    console.warn("Audio not initialized. Cannot play note.");
+    return;
+  }
+
+  // Stop any currently playing notes
+  stopActiveNotes();
+
+  console.log(`Playing ${instrument} note: MIDI=${midiNumber}, Pitch=${pitch}, Duration=${duration}, Volume=${volume}, Sound=${soundType}`);
+
+  try {
+    // Get the frequency for the MIDI note
+    const frequency = getNoteFrequency(midiNumber);
+    
+    // Try to use the soundfont if loaded
+    if (soundfontLoaded && soundfontSynth) {
+      try {
+        // Convert MIDI number to note name for Tone.js
+        const noteName = midiToNoteName(midiNumber);
+        
+        // Set volume
+        soundfontSynth.volume.value = Tone.gainToDb(volume);
+        
+        // Get appropriate instrument based on selection
+        let soundfontInstrument = 'acoustic_grand_piano';
+        if (instrument === 'trumpet') {
+          soundfontInstrument = 'trumpet';
+        } else if (instrument === 'trombone') {
+          soundfontInstrument = 'trombone';
+        } else if (instrument === 'recorder') {
+          soundfontInstrument = 'recorder';
+        } else if (instrument === 'ocarina') {
+          soundfontInstrument = 'ocarina'; // May not exist in GM soundfont
+        }
+        
+        // Play the note using the soundfont
+        soundfontSynth.triggerAttackRelease(noteName, duration);
+        console.log(`Played note ${noteName} using soundfont ${soundfontInstrument}`);
+        return;
+      } catch (error) {
+        console.error("Error playing with soundfont, falling back to oscillator:", error);
+      }
+    }
+    
+    // Fallback to oscillator-based synthesis
+    playNoteWithOscillator(instrument, frequency, duration, volume, soundType);
+    
+  } catch (error) {
+    console.error("Error playing note:", error);
+  }
+};
+
+/**
+ * Convert MIDI number to note name (e.g., 60 -> "C4")
+ */
+const midiToNoteName = (midi: number): string => {
+  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const octave = Math.floor(midi / 12) - 1;
+  const noteName = noteNames[midi % 12];
+  return `${noteName}${octave}`;
+};
+
+/**
+ * Play a note using basic oscillator synthesis
+ */
+const playNoteWithOscillator = (
+  instrument: string,
+  frequency: number,
+  duration: number = 1,
+  volume: number = 0.7,
+  soundType: string = 'default'
+): void => {
+  if (!audioContext || !gainNode) {
+    console.warn("Audio not initialized. Cannot play note with oscillator.");
+    return;
+  }
+  
+  try {
+    // Create oscillator
+    const oscillator = audioContext.createOscillator();
+    oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+    
+    // Create a gain node for this note
+    const noteGain = audioContext.createGain();
+    noteGain.gain.setValueAtTime(0, audioContext.currentTime);
+    
+    // Configure sound type and get resulting nodes
+    const [lastNode, ...additionalNodes] = configureSoundType(
+      audioContext,
+      oscillator,
+      instrument as 'trumpet' | 'trombone',
+      soundType
+    );
+    
+    // Connect the last node in the chain to the note gain node
+    lastNode.connect(noteGain);
+    
+    // Connect the note gain to the master gain
+    noteGain.connect(gainNode);
+    
+    // Start the oscillator
+    oscillator.start(audioContext.currentTime);
+    
+    // Attack phase
+    noteGain.gain.setValueAtTime(0, audioContext.currentTime);
+    noteGain.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.02);
+    
+    // Sustain phase
+    noteGain.gain.setValueAtTime(volume, audioContext.currentTime + duration - 0.05);
+    
+    // Release phase
+    noteGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+    
+    // Schedule oscillator stop
+    oscillator.stop(audioContext.currentTime + duration + 0.1);
+    
+    // Store active notes for later cleanup
+    activeNotes.push({ oscillator, gainNode: noteGain, nodes: additionalNodes });
+    
+    // Clean up when the note finishes
+    setTimeout(() => {
+      stopActiveNotes();
+    }, (duration + 0.2) * 1000);
+    
+  } catch (error) {
+    console.error("Error playing note with oscillator:", error);
+  }
+};
+
+/**
+ * Calculate frequency for a MIDI note number
+ */
+export const getNoteFrequency = (midiNumber: number): number => {
+  return 440 * Math.pow(2, (midiNumber - 69) / 12);
 };
 
 /**
@@ -126,7 +321,7 @@ const configureSoundType = (
   oscillator: OscillatorNode,
   instrument: 'trumpet' | 'trombone',
   soundType: string = 'default'
-): AudioNode[] => {
+): [AudioNode, ...AudioNode[]] => {
   let lastNode: AudioNode = oscillator;
   const audioNodes: AudioNode[] = [];
   
@@ -416,94 +611,53 @@ const configureSoundType = (
 };
 
 /**
- * Play a note with the specified MIDI note number
+ * Stop all currently active notes
  */
-export const playNote = (
-  instrument: string,
-  midiNote: number,
-  pitch: string,
-  duration: number = 1,
-  volume: number = 0.7,
-  soundType: string = 'default'
-): void => {
-  console.log(`Attempting to play: MIDI=${midiNote}, volume=${volume}`);
-  
-  // Create context if not already created
-  if (!audioContext) {
+export const stopActiveNotes = (): void => {
+  // Stop oscillator-based notes
+  activeNotes.forEach(({ oscillator, gainNode, nodes }) => {
     try {
-      audioContext = createAudioContext();
-    } catch (e) {
-      console.error('Failed to create audio context:', e);
-      return;
-    }
-  }
-  
-  // Force resume audioContext if it's suspended
-  if (audioContext.state === 'suspended') {
-    audioContext.resume().then(() => {
-      console.log('AudioContext resumed in playNote');
-      // Try again after resuming
+      // Immediate release if still playing
+      if (audioContext && gainNode.gain.value > 0) {
+        gainNode.gain.cancelScheduledValues(audioContext.currentTime);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.02);
+      }
+      
+      // Schedule oscillator to stop
       setTimeout(() => {
-        playNote(instrument, midiNote, pitch, duration, volume, soundType);
-      }, 100);
-    }).catch(err => {
-      console.error('Failed to resume audio context:', err);
-    });
-    return;
-  }
-  
-  try {
-    // Stop any previously playing notes
-    stopActiveNotes();
-    
-    // Calculate the frequency from MIDI note number
-    const frequency = midiToFrequency(midiNote);
-    console.log(`Playing frequency: ${frequency.toFixed(2)} Hz`);
-    
-    // Create oscillator
-    const oscillator = audioContext.createOscillator();
-    oscillator.type = 'triangle'; // Default waveform
-    oscillator.frequency.value = frequency;
-    
-    // Create gain node for this note
-    const noteGain = audioContext.createGain();
-    noteGain.gain.value = 0; // Start at zero to avoid clicks
-    
-    // Ensure main gain node exists and is properly connected
-    if (!gainNode) {
-      gainNode = audioContext.createGain();
-      gainNode.gain.value = volume;
-      gainNode.connect(audioContext.destination);
+        try {
+          oscillator.stop();
+          oscillator.disconnect();
+          gainNode.disconnect();
+          
+          // Disconnect all additional nodes
+          nodes.forEach(node => {
+            try {
+              node.disconnect();
+            } catch (error) {
+              // Ignore errors when disconnecting nodes
+            }
+          });
+        } catch (error) {
+          // Ignore errors when stopping already stopped oscillators
+        }
+      }, 30);
+    } catch (error) {
+      console.error("Error stopping note:", error);
     }
-    
-    // Connect the oscillator to the gain nodes
-    oscillator.connect(noteGain);
-    noteGain.connect(audioContext.destination); // Connect directly to destination for reliability
-    
-    // Apply envelope
-    const now = audioContext.currentTime;
-    
-    // Attack - fade in over 10ms
-    noteGain.gain.setValueAtTime(0, now);
-    noteGain.gain.linearRampToValueAtTime(volume, now + 0.01);
-    
-    // Decay and sustain
-    noteGain.gain.linearRampToValueAtTime(volume * 0.8, now + 0.1);
-    
-    // Release - fade out
-    noteGain.gain.setValueAtTime(volume * 0.8, now + duration - 0.05);
-    noteGain.gain.linearRampToValueAtTime(0, now + duration);
-    
-    // Track this oscillator so we can stop it later
-    activeOscillatorsList.push({oscillator, gain: noteGain});
-    
-    // Start and stop the oscillator
-    oscillator.start(now);
-    oscillator.stop(now + duration);
-    
-    console.log(`Note playing: MIDI=${midiNote}, freq=${frequency.toFixed(2)}Hz`);
-  } catch (error) {
-    console.error('Error playing note:', error);
+  });
+  
+  // Clear the active notes array
+  activeNotes = [];
+  
+  // If using soundfont, also stop those notes
+  if (soundfontSynth) {
+    try {
+      soundfontSynth.releaseAll();
+    } catch (error) {
+      console.error("Error stopping soundfont notes:", error);
+    }
   }
 };
 
