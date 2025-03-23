@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="960" height="240" viewBox="0 0 960 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="banner-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2E3A59" />
+      <stop offset="100%" stop-color="#C6B9FF" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="100%" height="100%" rx="20" ry="20" fill="url(#banner-bg)"/>
+  
+  <!-- Trumpet icon -->
+  <path d="M150,120 C150,100 170,90 190,90 C230,90 280,110 300,110 L640,110 C660,110 670,130 670,140 C670,150 660,170 640,170 L300,170 C280,170 230,150 190,150 C170,150 150,140 150,120 Z" fill="#FFD95A" stroke="#2E3A59" stroke-width="5"/>
+  
+  <path d="M640,110 L640,170 C660,170 730,140 730,140 C730,140 660,110 640,110 Z" fill="#FFD95A" stroke="#2E3A59" stroke-width="5"/>
+  
+  <!-- Valves -->
+  <rect x="350" y="80" width="30" height="80" rx="5" ry="5" fill="#70BFFD" stroke="#2E3A59" stroke-width="3" />
+  <rect x="400" y="80" width="30" height="80" rx="5" ry="5" fill="#70BFFD" stroke="#2E3A59" stroke-width="3" />
+  <rect x="450" y="80" width="30" height="80" rx="5" ry="5" fill="#70BFFD" stroke="#2E3A59" stroke-width="3" />
+  
+  <!-- Text -->
+  <text x="480" y="140" font-family="'Baloo 2', cursive" font-size="48" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Barefoot Enzo</text>
+  
+  <!-- Music notes -->
+  <path d="M720,90 L720,120 C720,130 730,135 740,130 C750,125 750,115 740,110 C730,105 720,110 720,120" stroke="#FFFFFF" stroke-width="3" fill="none"/>
+  <path d="M750,70 L750,100 C750,110 760,115 770,110 C780,105 780,95 770,90 C760,85 750,90 750,100 M750,70 C755,65 760,70 760,75" stroke="#FFFFFF" stroke-width="3" fill="none"/>
+  <path d="M780,100 L780,130 C780,140 790,145 800,140 C810,135 810,125 800,120 C790,115 780,120 780,130" stroke="#FFFFFF" stroke-width="3" fill="none"/>
+</svg> 

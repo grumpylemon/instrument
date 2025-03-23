@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <pattern id="notesPattern" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+      <!-- Quarter note -->
+      <path d="M30 60 L30 30 L32 28 Q35 25, 38 28 L40 30 L40 60 
+               Q40 70, 30 70 Q20 70, 20 60 Q20 50, 30 50 Z" 
+            fill="#3498db" opacity="0.7" />
+      
+      <!-- Eighth note -->
+      <path d="M80 140 L80 110 L82 108 Q85 105, 88 108 L90 110 L90 140 
+               Q90 150, 80 150 Q70 150, 70 140 Q70 130, 80 130 Z" 
+            fill="#e74c3c" opacity="0.7" />
+      <path d="M90 110 Q105 90, 115 115" stroke="#e74c3c" stroke-width="2" fill="none" opacity="0.7" />
+      
+      <!-- Half note -->
+      <path d="M160 90 L160 60 L162 58 Q165 55, 168 58 L170 60 L170 90 
+               Q170 100, 160 100 Q150 100, 150 90 Q150 80, 160 80 Z" 
+            fill="none" stroke="#2ecc71" stroke-width="2" opacity="0.7" />
+      
+      <!-- Treble clef -->
+      <path d="M60 180 Q50 170, 50 160 Q50 150, 60 140 Q70 130, 80 140 Q85 145, 85 155
+               Q85 165, 75 170 L70 175 Q65 180, 65 190 Q65 205, 80 210 Q55 230, 55 190
+               L60 180" 
+            fill="#9b59b6" opacity="0.6" />
+      
+      <!-- Bass clef -->
+      <path d="M150 185 Q140 185, 140 175 Q140 165, 150 165 Q160 165, 160 175 Q160 185, 150 185 Z"
+            fill="#f39c12" opacity="0.6" />
+      <path d="M140 175 Q130 175, 125 170 Q120 165, 120 155 Q120 145, 130 140 Q140 135, 150 140"
+            stroke="#f39c12" stroke-width="3" fill="none" opacity="0.6" />
+      <circle cx="170" cy="165" r="4" fill="#f39c12" opacity="0.6" />
+      <circle cx="170" cy="185" r="4" fill="#f39c12" opacity="0.6" />
+      
+      <!-- Additional notes -->
+      <path d="M30 140 L30 110 L32 108 Q35 105, 38 108 L40 110 L40 140 
+               Q40 150, 30 150 Q20 150, 20 140 Q20 130, 30 130 Z" 
+            fill="#1abc9c" opacity="0.7" transform="rotate(15, 30, 130)" />
+            
+      <path d="M120 65 L120 35 L122 33 Q125 30, 128 33 L130 35 L130 65 
+               Q130 75, 120 75 Q110 75, 110 65 Q110 55, 120 55 Z" 
+            fill="#e67e22" opacity="0.7" transform="rotate(-10, 120, 55)" />
+      
+      <!-- Staff lines -->
+      <line x1="10" y1="50" x2="190" y2="50" stroke="#34495e" stroke-width="1" opacity="0.3" />
+      <line x1="10" y1="70" x2="190" y2="70" stroke="#34495e" stroke-width="1" opacity="0.3" />
+      <line x1="10" y1="90" x2="190" y2="90" stroke="#34495e" stroke-width="1" opacity="0.3" />
+      <line x1="10" y1="110" x2="190" y2="110" stroke="#34495e" stroke-width="1" opacity="0.3" />
+      <line x1="10" y1="130" x2="190" y2="130" stroke="#34495e" stroke-width="1" opacity="0.3" />
+      
+      <line x1="10" y1="160" x2="190" y2="160" stroke="#34495e" stroke-width="1" opacity="0.3" />
+      <line x1="10" y1="180" x2="190" y2="180" stroke="#34495e" stroke-width="1" opacity="0.3" />
+      <line x1="10" y1="200" x2="190" y2="200" stroke="#34495e" stroke-width="1" opacity="0.3" />
+      <line x1="10" y1="220" x2="190" y2="220" stroke="#34495e" stroke-width="1" opacity="0.3" />
+      <line x1="10" y1="240" x2="190" y2="240" stroke="#34495e" stroke-width="1" opacity="0.3" />
+    </pattern>
+  </defs>
+  
+  <!-- Background with pattern -->
+  <rect width="100%" height="100%" fill="url(#notesPattern)" />
+</svg> 
