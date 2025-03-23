@@ -1,17 +1,17 @@
 {
   "files": {
-    "main.css": "/instrument/static/css/main.8d7aa4b4.css",
-    "main.js": "/instrument/static/js/main.b811cbf0.js",
+    "main.css": "/instrument/static/css/main.66cf9caf.css",
+    "main.js": "/instrument/static/js/main.3b0b2e90.js",
     "static/js/453.9bfc6a46.chunk.js": "/instrument/static/js/453.9bfc6a46.chunk.js",
     "static/media/trumpet-cartoon.svg": "/instrument/static/media/trumpet-cartoon.416a6b91e17a5ed5b3ac.svg",
     "static/media/music-notes-pattern.svg": "/instrument/static/media/music-notes-pattern.7e685d6ec645fb633a9e.svg",
     "index.html": "/instrument/index.html",
-    "main.8d7aa4b4.css.map": "/instrument/static/css/main.8d7aa4b4.css.map",
-    "main.b811cbf0.js.map": "/instrument/static/js/main.b811cbf0.js.map",
+    "main.66cf9caf.css.map": "/instrument/static/css/main.66cf9caf.css.map",
+    "main.3b0b2e90.js.map": "/instrument/static/js/main.3b0b2e90.js.map",
     "453.9bfc6a46.chunk.js.map": "/instrument/static/js/453.9bfc6a46.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.8d7aa4b4.css",
-    "static/js/main.b811cbf0.js"
+    "static/css/main.66cf9caf.css",
+    "static/js/main.3b0b2e90.js"
   ]
 }
