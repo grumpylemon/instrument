@@ -1,63 +1,69 @@
+// src/pages/WelcomePage.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import '../App.css';
+import Button from '../components/ui/button';
+import PanelWrapper from '../components/ui/PanelWrapper';
+import Card from '../components/ui/card';
+import '../styles/theme.css';
 import './WelcomePage.css';
 
 const WelcomePage: React.FC = () => {
   return (
-    <div className="welcome-page">
-      <div className="welcome-content">
-        <h1>Welcome to Brass & Wind Instrument Explorer</h1>
-        
-        <div className="trumpet-cartoon">
-          {/* This SVG is a simplified cartoon trumpet inspired by the Barefoot Enzo Trumpet Cartoon */}
-          <svg width="400" height="200" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
-            {/* Bell */}
-            <path d="M350,100 C380,70 390,130 350,100 Z" fill="#f9d423" stroke="#000" strokeWidth="2" />
-            
-            {/* Main tube */}
-            <path d="M50,100 L350,100" stroke="#f9d423" strokeWidth="25" fill="none" />
-            
-            {/* Valves */}
-            <circle cx="120" cy="80" r="15" fill="#e6b422" stroke="#000" strokeWidth="2" />
-            <circle cx="170" cy="80" r="15" fill="#e6b422" stroke="#000" strokeWidth="2" />
-            <circle cx="220" cy="80" r="15" fill="#e6b422" stroke="#000" strokeWidth="2" />
-            
-            {/* Valve stems */}
-            <line x1="120" y1="65" x2="120" y2="45" stroke="#000" strokeWidth="4" />
-            <line x1="170" y1="65" x2="170" y2="45" stroke="#000" strokeWidth="4" />
-            <line x1="220" y1="65" x2="220" y2="45" stroke="#000" strokeWidth="4" />
-            
-            {/* Mouthpiece */}
-            <circle cx="50" cy="100" r="10" fill="#e6b422" stroke="#000" strokeWidth="2" />
-            
-            {/* Cartoon eyes */}
-            <circle cx="280" cy="80" r="8" fill="#fff" stroke="#000" strokeWidth="2" />
-            <circle cx="280" cy="80" r="3" fill="#000" />
-            <circle cx="310" cy="80" r="8" fill="#fff" stroke="#000" strokeWidth="2" />
-            <circle cx="310" cy="80" r="3" fill="#000" />
-            
-            {/* Smile */}
-            <path d="M275,110 Q295,125 315,110" fill="none" stroke="#000" strokeWidth="2" />
-          </svg>
-        </div>
-        
-        <div className="welcome-message">
-          <p>Explore fingering charts and practice scales for various brass and wind instruments!</p>
-          <p>This app helps music students and educators learn proper fingerings and scales.</p>
-        </div>
-        
-        <div className="welcome-buttons">
-          <Link to="/fingering" className="welcome-button">
-            Explore Fingering Charts
-          </Link>
-          <Link to="/scales" className="welcome-button">
-            Practice Scales
-          </Link>
+    <PanelWrapper className="welcome-wrapper">
+      <div className="hero-section">
+        <img 
+          src="/assets/images/barefoot-enzo-banner.svg" 
+          alt="Barefoot Enzo Banner" 
+          className="hero-image"
+        />
+        <div className="hero-text">
+          <h1 className="hero-title">Barefoot Enzo's Brass Adventure</h1>
+          <p className="hero-subtitle">
+            Learn trumpet fingerings, master scales, and challenge yourself with our fun Valve Hero game!
+            Perfect for beginners and young musicians exploring the exciting world of brass instruments.
+          </p>
         </div>
       </div>
-    </div>
+
+      <div className="feature-section">
+        <Card className="feature-card">
+          <div className="feature-icon">🎮</div>
+          <h2>Valve Hero</h2>
+          <p>Test your fingering knowledge in this fun, fast-paced game! Read notes and select the correct valves as quickly as you can.</p>
+          <Link to="/valve-hero">
+            <Button variant="secondary" emoji="🔥">Play Now</Button>
+          </Link>
+        </Card>
+
+        <Card className="feature-card">
+          <div className="feature-icon">🎵</div>
+          <h2>Practice Scales</h2>
+          <p>Explore scales with visual and audio feedback. Hear the notes, see the fingerings, and build your skills one note at a time.</p>
+          <Link to="/scales">
+            <Button variant="primary" emoji="🎹">Go to Scales</Button>
+          </Link>
+        </Card>
+
+        <Card className="feature-card">
+          <div className="feature-icon">📘</div>
+          <h2>Trumpet Tips</h2>
+          <p>Get beginner-friendly advice, breathing exercises, and interactive diagrams to develop proper technique.</p>
+          <Link to="/trumpet-tips">
+            <Button variant="primary" emoji="💡">View Tips</Button>
+          </Link>
+        </Card>
+        
+        <Card className="feature-card">
+          <div className="feature-icon">🎺</div>
+          <h2>Fingering Charts</h2>
+          <p>Learn and visualize trumpet fingerings with comprehensive charts for all notes. Perfect for beginners learning note positions.</p>
+          <Link to="/fingering">
+            <Button variant="primary" emoji="📊">View Charts</Button>
+          </Link>
+        </Card>
+      </div>
+    </PanelWrapper>
   );
 };
 
-export default WelcomePage; 
+export default WelcomePage;

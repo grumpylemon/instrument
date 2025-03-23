@@ -1,0 +1,105 @@
+.musical-staff-wrapper {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto 2rem;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.musical-staff-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.musical-staff-title {
+  color: var(--color-text);
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.musical-staff-subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-style: italic;
+}
+
+.musical-staff-container {
+  background-color: white;
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* OSMD specific overrides */
+.musical-staff-container .osmd-container {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100px;
+}
+
+.musical-staff-container svg {
+  max-width: 100%;
+  height: auto !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .musical-staff-wrapper {
+    padding: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .musical-staff-title {
+    font-size: 1.25rem;
+  }
+  
+  .musical-staff-container {
+    padding: 0.5rem;
+  }
+}
+
+/* Styling for highlighting notes */
+.musical-staff-container .correct-note {
+  fill: var(--color-correct) !important;
+  stroke: var(--color-correct) !important;
+}
+
+.musical-staff-container .incorrect-note {
+  fill: var(--color-incorrect) !important;
+  stroke: var(--color-incorrect) !important;
+}
+
+.musical-staff-container .current-note {
+  fill: var(--color-current) !important;
+  stroke: var(--color-current) !important;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+} 

@@ -1,0 +1,66 @@
+/* src/styles/theme.css */
+
+:root {
+    /* Brand Colors */
+    --color-sky-blue: #70BFFD;
+    --color-trumpet-gold: #FFD95A;
+    --color-sunset-coral: #FF6F61;
+    --color-midnight-navy: #2E3A59;
+    --color-dreamy-lavender: #C6B9FF;
+    --color-white: #ffffff;
+  
+    /* Background Gradients */
+    --bg-gradient: linear-gradient(135deg, #2E3A59 0%, #C6B9FF 100%);
+    --bg-card: rgba(255, 255, 255, 0.08);
+  
+    /* Font */
+    --font-primary: 'Poppins', sans-serif;
+    --font-alt: 'Baloo 2', cursive;
+  
+    /* Shadows */
+    --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 6px 18px rgba(0, 0, 0, 0.15);
+  
+    /* Radius */
+    --radius-xl: 2rem;
+    --radius-md: 1rem;
+    --radius-sm: 0.5rem;
+  
+    /* Animation */
+    --transition-fast: all 0.2s ease-in-out;
+    --transition-medium: all 0.4s ease;
+  }
+  
+  body {
+    font-family: var(--font-primary);
+    background: var(--bg-gradient);
+    color: var(--color-white);
+  }
+  
+  button {
+    font-family: var(--font-primary);
+    border-radius: var(--radius-md);
+    transition: var(--transition-fast);
+  }
+  
+  button:hover {
+    box-shadow: var(--shadow-hover);
+  }
+  
+  /* Example color usage classes */
+  .bg-primary {
+    background-color: var(--color-sky-blue);
+  }
+  
+  .bg-secondary {
+    background-color: var(--color-trumpet-gold);
+  }
+  
+  .text-primary {
+    color: var(--color-sky-blue);
+  }
+  
+  .text-accent {
+    color: var(--color-dreamy-lavender);
+  }
+  

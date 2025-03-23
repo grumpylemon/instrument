@@ -53,6 +53,7 @@ const MusicalStaff: React.FC<MusicalStaffProps> = ({
   const lastClickedElementRef = useRef<string | null>(null);
   const lastClickTimeRef = useRef<number>(0);
   const handleClickRef = React.useRef<((e: MouseEvent) => void) | null>(null) as React.MutableRefObject<((e: MouseEvent) => void) | null>;
+  const [hasRendered, setHasRendered] = useState(false);
   
   // Helper function to get key signature in fifths based on key name
   const getKeySignatureByName = (keyName: string): number => {
@@ -216,9 +217,13 @@ const MusicalStaff: React.FC<MusicalStaffProps> = ({
 
   // Helper to check if a note is a root note of the scale
   const isRootNote = (midiNote: number, rootMidiNote: number): boolean => {
+    // Get the pitch class of the current note and the root note
+    const notePitchClass = midiNote % 12;
+    const rootPitchClass = rootMidiNote % 12;
+    
     // A note is a root note if it's the same pitch class as the root note
     // (i.e., same note in any octave)
-    return (midiNote % 12) === (rootMidiNote % 12);
+    return notePitchClass === rootPitchClass;
   };
 
   // Use debounced version of onNoteSelect to prevent double triggering
@@ -453,6 +458,47 @@ const MusicalStaff: React.FC<MusicalStaffProps> = ({
     }
   };
 
+  // Add the setupClickHandler function before the useEffect
+  const setupClickHandler = useCallback(() => {
+    if (!containerRef.current) return;
+    
+    // Remove any existing handler
+    if (handleClickRef.current) {
+      containerRef.current.removeEventListener('click', handleClickRef.current);
+    }
+    
+    // Create and store the new handler
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as SVGElement;
+      const noteElement = target.closest('.vf-note');
+      
+      if (noteElement) {
+        // Try to find the note's MIDI number from its ID or data attribute
+        const noteId = noteElement.getAttribute('data-midi') || noteElement.id;
+        
+        if (noteId) {
+          // Extract the MIDI number from the ID (format: "note-{midiNumber}")
+          const midiMatch = noteId.match(/note-(\d+)/);
+          if (midiMatch && midiMatch[1]) {
+            const midiNumber = parseInt(midiMatch[1], 10);
+            
+            // Find the corresponding note data
+            const clickedNote = notes.find(n => n.note.midiNote === midiNumber);
+            if (clickedNote) {
+              debouncedNoteSelect(clickedNote);
+            }
+          }
+        }
+      }
+    };
+    
+    // Store the handler for cleanup
+    handleClickRef.current = handleClick;
+    
+    // Add the click handler
+    containerRef.current.addEventListener('click', handleClick);
+  }, [notes, debouncedNoteSelect]);
+
   // Setup click handler
   useEffect(() => {
     if (!containerRef.current) return;
@@ -628,55 +674,69 @@ const MusicalStaff: React.FC<MusicalStaffProps> = ({
     };
   }, [clef, notes, onNoteSelect, highlightNote]);
 
-  // Effect to re-render the music when notes, clef, selection, or root note changes
+  // Initial OSMD rendering
   useEffect(() => {
-    if (containerRef.current) {
-      console.log("Rendering OSMD with notes:", notes.length);
-      if (!osmdRef.current) {
+    const renderScore = async () => {
+      if (!containerRef.current) return;
+      
+      try {
+        // Clear previous instance if it exists
+        if (osmdRef.current) {
+          containerRef.current.innerHTML = '';
+        }
+        
+        // Create new OSMD instance
         osmdRef.current = new OpenSheetMusicDisplay(containerRef.current);
+        
+        // Configure OSMD options
         osmdRef.current.setOptions({
           backend: "svg",
           drawTitle: false,
           drawSubtitle: false,
           drawPartNames: false,
-          drawComposer: false,
-          drawLyricist: false,
-          drawFingerings: true,
           drawMeasureNumbers: false,
           drawTimeSignatures: false,
-          autoResize: true
+          autoResize: true,
+          followCursor: false
         });
+        
+        const musicXml = generateMusicXml();
+        await osmdRef.current.load(musicXml);
+        await osmdRef.current.render();
+        
+        // Mark as rendered so we know we're ready for click handlers
+        setHasRendered(true);
+        
+        // Add note selection click handler
+        setupClickHandler();
+        
+        console.log("OSMD staff rendered");
+        
+      } catch (error) {
+        console.error('Error rendering MusicalStaff:', error);
       }
-      
-      const musicXml = generateMusicXml();
-      console.log("Generated MusicXML");
-      
-      osmdRef.current.load(musicXml)
-        .then(() => {
-          console.log("Music XML loaded");
-          osmdRef.current?.render();
-          console.log("OSMD rendered");
-          
-          // When colorByDegree is enabled, the colors are already in the MusicXML
-          // Only apply rootNote highlighting if not using Boomwhacker colors
-          if (!colorByDegree) {
-            highlightRootNotes();
-          }
-          
-          if (selectedNote) {
-            highlightNote(selectedNote.note.midiNote);
-          }
-        })
-        .catch(error => {
-          console.error("Error loading MusicXML:", error);
-        });
-    }
-  }, [notes, clef, selectedNote, rootNote, highlightRootNotes, generateMusicXml]);
+    };
+    
+    renderScore();
+    
+    // Cleanup on unmount
+    return () => {
+      if (containerRef.current && handleClickRef.current) {
+        containerRef.current.removeEventListener('click', handleClickRef.current);
+      }
+    };
+  }, [notes, selectedNote, rootNote, colorByDegree, clef, keyName, generateMusicXml]);
   
   return (
-    <div className="staff-container">
-      <div className="staff-content" ref={containerRef}></div>
-    </div>
+    <div 
+      className="musical-staff"
+      ref={containerRef} 
+      style={{ 
+        width: '100%',
+        minHeight: '150px', 
+        position: 'relative',
+      }}
+    ></div>
   );
 };
 

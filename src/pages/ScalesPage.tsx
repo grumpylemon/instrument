@@ -6,6 +6,7 @@ import { NoteData, TRUMPET_NOTES, TROMBONE_NOTES, RECORDER_NOTES, OCARINA_NOTES,
 import { initializeAudio, playNote, stopAllSounds, stopActiveNotes, unlockAudioContext, getAudioContext } from '../utils/audioUtils';
 import TimeStamp from '../components/TimeStamp';
 import '../components/styles/Boomwhacker.css';
+import MusicalStaffWrapper from '../components/MusicalStaffWrapper';
 
 // Scale patterns in semitones
 const SCALE_PATTERNS = {
@@ -23,8 +24,9 @@ const SCALE_PATTERNS = {
 // Keys for scale selection - include all 15 major keys (both sharps and flats)
 const KEYS = [
   'C',                // No sharps/flats
-  'G', 'D', 'A', 'E', 'B', 'F#', 'C#',  // Sharp keys
-  'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'  // Flat keys
+  'D', 'E', 'F', 'G', 'A', 'B',  // Natural keys
+  'C#', 'F#',         // Sharp keys
+  'Cb', 'Db', 'Eb', 'Gb', 'Ab', 'Bb'  // Flat keys
 ];
 
 // Scale names for display
@@ -57,7 +59,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
   const [volume, setVolume] = useState<number>(0.7);
   const [soundType, setSoundType] = useState<string>('default');
   const [audioInitialized, setAudioInitialized] = useState<boolean>(false);
-  const [audioStatus, setAudioStatus] = useState<string>('Click Initialize to enable sound');
+  const [audioStatus, setAudioStatus] = useState<string>('Audio not initialized');
   const [colorByDegree, setColorByDegree] = useState<boolean>(false);
   
   // Note display states
@@ -69,14 +71,11 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
   // References for playback
   const playbackInterval = useRef<NodeJS.Timeout | null>(null);
   
-  // Add new state for audio settings panel
-  const [showAudioSettings, setShowAudioSettings] = useState<boolean>(false);
-  
-  // Add state to track direction
-  const [playDirection, setPlayDirection] = useState<'forward' | 'backward'>('forward');
-  
   // Add new state for loading indicator
   const [isAudioLoading, setIsAudioLoading] = useState<boolean>(false);
+  
+  // Add new state for play direction
+  const [playDirection, setPlayDirection] = useState<'forward' | 'backward'>('forward');
   
   // Get notes based on selected instrument
   const baseNotes = instrument === 'trumpet' 
@@ -304,7 +303,13 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     } else {
       // Standard behavior for single octave
       const octaveNotes = scalePattern.map(semitones => rootMidiNote + semitones);
-      allScaleMidiNotes = [...octaveNotes];
+      
+      // If the last note is the same as the first but an octave higher, we may want to keep it
+      // However, if we have duplicates in the pattern (some scales might), remove them
+      const uniqueNotes = octaveNotes.filter((note, index, array) =>
+        array.indexOf(note) === index);
+      
+      allScaleMidiNotes = [...uniqueNotes];
     }
     
     // Map MIDI notes to actual note data from our instrument
@@ -350,9 +355,10 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
       await unlockAudioContext();
       await initializeAudio();
       setAudioInitialized(true);
-      setShowAudioSettings(false);
+      setAudioStatus('Audio ready');
     } catch (error) {
       console.error('Failed to initialize audio:', error);
+      setAudioStatus('Audio initialization failed. Try again.');
     } finally {
       setIsAudioLoading(false);
     }
@@ -387,6 +393,8 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
       setIsPlaying(true);
       
       // Set initial note index based on direction
+      // Forward = ascending (low to high) = start at index 0
+      // Backward = descending (high to low) = start at last index
       let noteIndex = playDirection === 'forward' ? 0 : scaleNotes.length - 1;
       setCurrentNoteIndex(noteIndex);
       
@@ -420,6 +428,8 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
         playNote(instrument, currentNote.note.midiNote, pitch, 0.9, volume, soundType);
         
         // Move to next note based on direction
+        // Forward = increment index (move towards higher notes)
+        // Backward = decrement index (move towards lower notes)
         noteIndex = playDirection === 'forward' ? noteIndex + 1 : noteIndex - 1;
       }, noteDuration);
     } catch (error) {
@@ -705,11 +715,6 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     );
   };
   
-  // Add toggle function for audio settings
-  const toggleAudioSettings = () => {
-    setShowAudioSettings(!showAudioSettings);
-  };
-  
   // Add toggle handler for Boomwhacker Colors
   const toggleColorByDegree = () => {
     setColorByDegree(!colorByDegree);
@@ -836,65 +841,6 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
     );
   };
 
-  // Audio settings panel
-  const renderAudioSettings = () => {
-    return (
-      <div className="audio-settings-panel" style={{ 
-        backgroundColor: '#f5f5f5', 
-        padding: '15px', 
-        borderRadius: '8px',
-        margin: '15px 0',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-      }}>
-        <h3 style={{ marginTop: 0 }}>Audio Settings</h3>
-        <p>Click the button below to initialize audio. This is required for playing sounds on this page.</p>
-        
-        <button 
-          onClick={handleInitializeAudio} 
-          disabled={isAudioLoading}
-          style={{
-            backgroundColor: '#444',
-            color: 'white',
-            padding: '10px 15px',
-            borderRadius: '4px',
-            border: 'none',
-            cursor: isAudioLoading ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px'
-          }}
-        >
-          {isAudioLoading ? (
-            <>
-              <span className="loading-spinner" style={{
-                display: 'inline-block',
-                width: '16px',
-                height: '16px',
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderRadius: '50%',
-                borderTopColor: 'white',
-                animation: 'spin 1s linear infinite'
-              }}></span>
-              Initializing...
-            </>
-          ) : (
-            'Initialize Audio'
-          )}
-        </button>
-        
-        <style>
-          {`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}
-        </style>
-      </div>
-    );
-  };
-
   // Add visual feedback when a note is playing
   useEffect(() => {
     if (isPlaying && currentNoteIndex >= 0 && currentNoteIndex < scaleNotes.length) {
@@ -932,35 +878,26 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
               border: 'none',
               padding: '10px 15px',
               borderRadius: '4px',
-              cursor: 'pointer',
+              cursor: isAudioLoading ? 'not-allowed' : 'pointer',
               marginLeft: '15px',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
             }}
+            disabled={isAudioLoading}
           >
-            🔊 Click to Activate Audio
+            {isAudioLoading ? (
+              <>
+                <span className="loading-spinner"></span>
+                Initializing...
+              </>
+            ) : (
+              <>🔊 Click to Activate Audio</>
+            )}
           </button>
         </div>
       )}
-      
-      {/* Audio Settings Panel - Collapsible */}
-      <div className="audio-settings-container">
-        <button 
-          className={`audio-settings-toggle ${showAudioSettings ? 'active' : ''}`}
-          onClick={toggleAudioSettings}
-          style={{
-            backgroundColor: '#444444',
-            color: 'white',
-            border: 'none',
-            padding: '8px 15px',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          🔊 Audio Settings {showAudioSettings ? '▲' : '▼'}
-        </button>
-        
-        {showAudioSettings && renderAudioSettings()}
-      </div>
       
       {/* Main Controls - Keep at top */}
       <div className="scales-controls">
@@ -1100,15 +1037,20 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
       
       {/* Musical staff to display the scale */}
       {scaleNotes.length > 0 && (
-        <MusicalStaff
-          clef={clef}
-          notes={scaleNotes}
-          onNoteSelect={handleNoteSelect}
-          selectedNote={selectedNote}
-          rootNote={scaleNotes[0].note.midiNote}
-          colorByDegree={colorByDegree}
-          keyName={key}
-        />
+        <MusicalStaffWrapper
+          title={`${key} ${SCALE_NAMES[scaleType]} Scale`}
+          subtitle={`${scaleNotes.length} notes - ${expandedRange ? 'Extended Range' : 'Single Octave'}`}
+        >
+          <MusicalStaff
+            clef={clef}
+            notes={scaleNotes}
+            onNoteSelect={handleNoteSelect}
+            selectedNote={selectedNote}
+            rootNote={keyToPitchClass(key) + (clef === 'bass' ? 48 : 60)}
+            colorByDegree={colorByDegree}
+            keyName={key}
+          />
+        </MusicalStaffWrapper>
       )}
       
       {/* Scale notes display */}
@@ -1178,7 +1120,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
             gap: '5px'
           }}
         >
-          {isPlaying && playDirection === 'backward' ? '⏹ Stop' : '◀ Play Descending'}
+          {isPlaying && playDirection === 'backward' ? '⏹ Stop' : '◀ Play Descending (high to low)'}
         </button>
         
         <button
@@ -1199,7 +1141,7 @@ const ScalesPage: React.FC<ScalesPageProps> = () => {
             gap: '5px'
           }}
         >
-          {isPlaying && playDirection === 'forward' ? '⏹ Stop' : '▶ Play Ascending'}
+          {isPlaying && playDirection === 'forward' ? '⏹ Stop' : '▶ Play Ascending (low to high)'}
         </button>
       </div>
       

@@ -1,0 +1,52 @@
+.panel-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding: var(--space-lg) var(--space-md);
+}
+
+.panel-wrapper.with-background {
+  background-color: var(--color-background);
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 5%, transparent 10%),
+    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.05) 2%, transparent 6%);
+  background-size: 25% 25%;
+}
+
+.panel-content {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  z-index: 1;
+  gap: var(--space-lg);
+}
+
+/* Add gentle animations when elements appear */
+.panel-wrapper .card,
+.panel-wrapper .hero-section,
+.panel-wrapper .feature-section {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .panel-wrapper {
+    padding: var(--space-md) var(--space-sm);
+  }
+} 

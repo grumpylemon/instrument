@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="music-notes" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+      <!-- Quarter Note -->
+      <path d="M20,20 L20,60 C20,68 28,74 35,70 C42,66 42,54 35,50 C28,46 20,52 20,60" stroke="#FFFFFF" stroke-width="2" fill="none"/>
+      
+      <!-- Eighth Note -->
+      <path d="M60,30 L60,70 C60,78 68,84 75,80 C82,76 82,64 75,60 C68,56 60,62 60,70 M60,30 C65,25 70,30 70,35" stroke="#FFFFFF" stroke-width="2" fill="none"/>
+      
+      <!-- Treble Clef -->
+      <path d="M40,90 C35,80 35,70 40,65 C45,60 55,60 55,70 C55,80 45,80 40,75 C38,70 40,65 45,65 M45,65 L45,40" stroke="#FFFFFF" stroke-width="2" fill="none"/>
+      
+      <!-- Music Rest -->
+      <path d="M80,50 C75,45 75,55 80,50 M77,50 L83,60" stroke="#FFFFFF" stroke-width="2" fill="none"/>
+    </pattern>
+  </defs>
+  
+  <rect width="100%" height="100%" fill="url(#music-notes)"/>
+</svg> 

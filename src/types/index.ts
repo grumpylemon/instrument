@@ -1,3 +1,5 @@
+import { TRUMPET_NOTES_DATA, TrumpetNoteData, getValvesForNote } from '../data/trumpetData';
+
 export type Instrument = 'trumpet' | 'trombone' | 'recorder' | 'ocarina';
 export type Clef = 'treble' | 'bass';
 export type InstrumentPitch = 'concert' | 'Bb' | 'Eb';
@@ -46,44 +48,23 @@ const transposeMidiNote = (midiNote: number, pitch: InstrumentPitch): number => 
   return midiNote + transpositionMap[pitch];
 };
 
-export const TRUMPET_NOTES: NoteData[] = [
-  // Low register (F3 to B3)
-  { note: { name: 'F', octave: 3, midiNote: 53, frequency: getNoteFrequency(transposeMidiNote(53, 'Bb')) }, fingering: { valves: [1] } },
-  { note: { name: 'F#', octave: 3, midiNote: 54, frequency: getNoteFrequency(transposeMidiNote(54, 'Bb')) }, fingering: { valves: [2] } },
-  { note: { name: 'G', octave: 3, midiNote: 55, frequency: getNoteFrequency(transposeMidiNote(55, 'Bb')) }, fingering: { valves: [] } },
-  { note: { name: 'G#', octave: 3, midiNote: 56, frequency: getNoteFrequency(transposeMidiNote(56, 'Bb')) }, fingering: { valves: [2] } },
-  { note: { name: 'A', octave: 3, midiNote: 57, frequency: getNoteFrequency(transposeMidiNote(57, 'Bb')) }, fingering: { valves: [1] } },
-  { note: { name: 'A#', octave: 3, midiNote: 58, frequency: getNoteFrequency(transposeMidiNote(58, 'Bb')) }, fingering: { valves: [1, 2] } },
-  { note: { name: 'B', octave: 3, midiNote: 59, frequency: getNoteFrequency(transposeMidiNote(59, 'Bb')) }, fingering: { valves: [2] } },
-  // Middle register (C4 to B4)
-  { note: { name: 'C', octave: 4, midiNote: 60, frequency: getNoteFrequency(transposeMidiNote(60, 'Bb')) }, fingering: { valves: [] } },
-  { note: { name: 'C#', octave: 4, midiNote: 61, frequency: getNoteFrequency(transposeMidiNote(61, 'Bb')) }, fingering: { valves: [1, 2, 3] } },
-  { note: { name: 'D', octave: 4, midiNote: 62, frequency: getNoteFrequency(transposeMidiNote(62, 'Bb')) }, fingering: { valves: [1, 3] } },
-  { note: { name: 'D#', octave: 4, midiNote: 63, frequency: getNoteFrequency(transposeMidiNote(63, 'Bb')) }, fingering: { valves: [2, 3] } },
-  { note: { name: 'E', octave: 4, midiNote: 64, frequency: getNoteFrequency(transposeMidiNote(64, 'Bb')) }, fingering: { valves: [1, 2] } },
-  { note: { name: 'F', octave: 4, midiNote: 65, frequency: getNoteFrequency(transposeMidiNote(65, 'Bb')) }, fingering: { valves: [1] } },
-  { note: { name: 'F#', octave: 4, midiNote: 66, frequency: getNoteFrequency(transposeMidiNote(66, 'Bb')) }, fingering: { valves: [2] } },
-  { note: { name: 'G', octave: 4, midiNote: 67, frequency: getNoteFrequency(transposeMidiNote(67, 'Bb')) }, fingering: { valves: [] } },
-  { note: { name: 'G#', octave: 4, midiNote: 68, frequency: getNoteFrequency(transposeMidiNote(68, 'Bb')) }, fingering: { valves: [2] } },
-  { note: { name: 'A', octave: 4, midiNote: 69, frequency: getNoteFrequency(transposeMidiNote(69, 'Bb')) }, fingering: { valves: [1] } },
-  { note: { name: 'A#', octave: 4, midiNote: 70, frequency: getNoteFrequency(transposeMidiNote(70, 'Bb')) }, fingering: { valves: [1, 2] } },
-  { note: { name: 'B', octave: 4, midiNote: 71, frequency: getNoteFrequency(transposeMidiNote(71, 'Bb')) }, fingering: { valves: [2] } },
-  // High register (C5 to B5)
-  { note: { name: 'C', octave: 5, midiNote: 72, frequency: getNoteFrequency(transposeMidiNote(72, 'Bb')) }, fingering: { valves: [] } },
-  { note: { name: 'C#', octave: 5, midiNote: 73, frequency: getNoteFrequency(transposeMidiNote(73, 'Bb')) }, fingering: { valves: [1, 2, 3] } },
-  { note: { name: 'D', octave: 5, midiNote: 74, frequency: getNoteFrequency(transposeMidiNote(74, 'Bb')) }, fingering: { valves: [1, 3] } },
-  { note: { name: 'D#', octave: 5, midiNote: 75, frequency: getNoteFrequency(transposeMidiNote(75, 'Bb')) }, fingering: { valves: [2, 3] } },
-  { note: { name: 'E', octave: 5, midiNote: 76, frequency: getNoteFrequency(transposeMidiNote(76, 'Bb')) }, fingering: { valves: [1, 2] } },
-  { note: { name: 'F', octave: 5, midiNote: 77, frequency: getNoteFrequency(transposeMidiNote(77, 'Bb')) }, fingering: { valves: [1] } },
-  { note: { name: 'F#', octave: 5, midiNote: 78, frequency: getNoteFrequency(transposeMidiNote(78, 'Bb')) }, fingering: { valves: [2] } },
-  { note: { name: 'G', octave: 5, midiNote: 79, frequency: getNoteFrequency(transposeMidiNote(79, 'Bb')) }, fingering: { valves: [] } },
-  { note: { name: 'G#', octave: 5, midiNote: 80, frequency: getNoteFrequency(transposeMidiNote(80, 'Bb')) }, fingering: { valves: [2] } },
-  { note: { name: 'A', octave: 5, midiNote: 81, frequency: getNoteFrequency(transposeMidiNote(81, 'Bb')) }, fingering: { valves: [1] } },
-  { note: { name: 'A#', octave: 5, midiNote: 82, frequency: getNoteFrequency(transposeMidiNote(82, 'Bb')) }, fingering: { valves: [1, 2] } },
-  { note: { name: 'B', octave: 5, midiNote: 83, frequency: getNoteFrequency(transposeMidiNote(83, 'Bb')) }, fingering: { valves: [2] } },
-  // Very high register (C6)
-  { note: { name: 'C', octave: 6, midiNote: 84, frequency: getNoteFrequency(transposeMidiNote(84, 'Bb')) }, fingering: { valves: [] } },
-];
+// Convert the trumpetData to the format expected by the application
+export const TRUMPET_NOTES: NoteData[] = TRUMPET_NOTES_DATA.map(note => {
+  return {
+    note: {
+      name: note.name,
+      octave: note.octave,
+      midiNote: note.midiNote,
+      frequency: note.frequency
+    },
+    fingering: {
+      valves: note.valves
+    }
+  };
+}).filter((item, index, self) => 
+  // Filter out duplicate notes that have both sharp and flat names
+  index === self.findIndex((t) => t.note.midiNote === item.note.midiNote)
+);
 
 export const TROMBONE_NOTES: NoteData[] = [
   // Low register (E2 to B2)
